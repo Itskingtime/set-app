@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Set — Voice Workout Logger</title>
+
+  <!-- PWA / mobile -->
+  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Set" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px); }
+
+    body {
+      background: #0f0f0f; color: #f0f0f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: calc(28px + var(--safe-top)) 16px calc(60px + var(--safe-bottom));
+      -webkit-text-size-adjust: 100%;
+    }
+
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 24px; }
+
+    /* ── Auth screen ── */
+    #authScreen {
+      width: 100%; max-width: 380px; margin-top: 8vh;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .auth-card {
+      width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a;
+      border-radius: 16px; padding: 28px 24px;
+    }
+    .auth-logo { font-size: 2.6rem; text-align: center; margin-bottom: 8px; }
+    .auth-title { font-size: 1.3rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .auth-sub { color: #888; font-size: 0.85rem; text-align: center; margin-bottom: 24px; }
+    .auth-card label {
+      font-size: 0.74rem; color: #666; text-transform: uppercase;
+      letter-spacing: 0.06em; display: block; margin-bottom: 6px; margin-top: 16px;
+    }
+    .auth-card label:first-of-type { margin-top: 0; }
+    .auth-card input {
+      width: 100%; background: #111; border: 1px solid #2a2a2a; color: #f0f0f0;
+      border-radius: 10px; padding: 13px 14px; font-size: 16px; outline: none;
+    }
+    .auth-card input:focus { border-color: #555; }
+    .auth-btn {
+      width: 100%; padding: 13px; border-radius: 10px; border: none;
+      font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 20px;
+      background: #ff4545; color: #fff; transition: background 0.15s;
+    }
+    .auth-btn:hover { background: #ff3333; }
+    .auth-btn:disabled { opacity: 0.5; cursor: default; }
+    .auth-toggle {
+      text-align: center; margin-top: 18px; font-size: 0.85rem; color: #888;
+    }
+    .auth-toggle a { color: #ff8585; cursor: pointer; text-decoration: none; font-weight: 600; }
+    .auth-msg {
+      margin-top: 16px; font-size: 0.82rem; text-align: center;
+      padding: 10px; border-radius: 8px; display: none; line-height: 1.45;
+    }
+    .auth-msg.error { display: block; background: #2a1414; color: #ff8585; border: 1px solid #4a2020; }
+    .auth-msg.info  { display: block; background: #14201a; color: #7bffb0; border: 1px solid #1f4030; }
+
+    /* ── App header ── */
+    .app-header {
+      width: 100%; max-width: 760px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .app-header .who { font-size: 0.8rem; color: #666; }
+    .app-header .who b { color: #aaa; font-weight: 600; }
+
+    .api-banner {
+      width: 100%; max-width: 760px;
+      background: #1a1a2a; border: 1px solid #333; border-radius: 10px;
+      padding: 10px 16px; margin-bottom: 24px;
+      font-size: 0.8rem; color: #888; display: flex; align-items: center; gap: 10px;
+    }
+    .api-dot { width: 8px; height: 8px; border-radius: 50%; background: #6bff8e; flex-shrink: 0; }
+
+    /* Tabs */
+    .tabs {
+      width: 100%; max-width: 760px; display: flex; gap: 4px;
+      background: #1a1a1a; border: 1px solid #2a2a2a;
+      border-radius: 12px; padding: 4px; margin-bottom: 28px;
+    }
+    .tab-btn {
+      flex: 1; padding: 11px 0; background: none; border: none;
+      border-radius: 9px; color: #666; font-size: 0.88rem;
+      font-weight: 600; cursor: pointer; transition: all 0.18s;
+    }
+    .tab-btn.active { background: #2a2a2a; color: #f0f0f0; }
+
+    .tab-panel { width: 100%; max-width: 760px; display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Mic */
+    .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 32px; }
+    #micBtn {
+      width: 96px; height: 96px; border-radius: 50%; border: none;
+      background: #1e1e1e; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; font-size: 2.3rem; transition: all 0.2s;
+    }
+    #micBtn.listening { background: #ff4545; animation: pulse 1.2s infinite; }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,69,69,0.6); }
+      70%  { box-shadow: 0 0 0 22px rgba(255,69,69,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,69,69,0); }
+    }
+    .mic-label { color: #888; font-size: 0.82rem; }
+
+    /* Sections */
+    .section { width: 100%; margin-bottom: 28px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .section-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #555; }
+
+    .btn-sm {
+      font-size: 0.75rem; padding: 7px 12px; border-radius: 7px;
+      border: 1px solid #333; background: #1e1e1e; color: #aaa;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-sm:hover { background: #2a2a2a; color: #f0f0f0; border-color: #444; }
+    .btn-sm.danger:hover { background: #2a1a1a; color: #ff6b6b; border-color: #ff4545; }
+
+    .transcript-box {
+      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
+      padding: 14px 16px; min-height: 52px; font-size: 0.92rem; color: #ccc; line-height: 1.5;
+    }
+    .transcript-box.interim { color: #777; font-style: italic; }
+
+    /* Status */
+    .status { font-size: 0.8rem; color: #666; min-height: 18px; margin-bottom: 10px; }
+    .status.active { color: #ff9f43; }
+    .spinner {
+      display: inline-block; width: 9px; height: 9px;
+      border: 2px solid #ff9f43; border-top-color: transparent;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      margin-right: 5px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Table */
+    .table-wrap { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 440px; }
+    thead tr { background: #222; }
+    thead th {
+      padding: 10px 14px; text-align: left;
+      font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #555; font-weight: 600;
+    }
+    tbody tr { border-top: 1px solid #1e1e1e; }
+    td { padding: 10px 14px; vertical-align: middle; }
+
+    /* Muscle badges */
+    .muscle-badge {
+      font-size: 0.65rem; padding: 3px 8px; border-radius: 20px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+      white-space: nowrap; display: inline-block;
+    }
+    .badge-chest{background:#3a1a1a;color:#ff6b6b} .badge-back{background:#1a2a3a;color:#6bb5ff}
+    .badge-legs{background:#1a3a1a;color:#6bff8e} .badge-shoulders{background:#2a2a1a;color:#ffe56b}
+    .badge-arms{background:#2a1a3a;color:#c46bff} .badge-core{background:#3a2a1a;color:#ffaa6b}
+    .badge-neck{background:#1a3a3a;color:#6bffee} .badge-other{background:#2a2a2a;color:#aaa}
+
+    .ex-name { font-weight: 600; color: #eee; }
+
+    /* Editable cells */
+    .editable {
+      display: inline-flex; align-items: center; gap: 4px;
+      cursor: pointer; border-radius: 5px; padding: 4px 8px;
+      transition: background 0.15s; min-width: 44px; min-height: 30px;
+    }
+    .editable:hover { background: #2a2a2a; }
+    .editable .val  { font-weight: 700; color: #f0f0f0; }
+    .editable .unit { font-size: 0.75rem; color: #666; }
+    .editable.empty .val { color: #444; font-weight: 400; }
+    .edit-input {
+      width: 64px; background: #2a2a2a; border: 1px solid #555; color: #f0f0f0;
+      border-radius: 5px; padding: 4px 6px; font-size: 16px; font-weight: 700; outline: none;
+    }
+    .edit-input:focus { border-color: #ff9f43; }
+
+    .delete-cell { width: 40px; text-align: center; }
+    .delete-btn {
+      background: none; border: none; color: #444; cursor: pointer;
+      font-size: 1rem; padding: 6px; border-radius: 4px;
+    }
+    .delete-btn:hover { color: #ff6b6b; }
+
+    .empty   { color: #444; font-size: 0.85rem; text-align: center; padding: 24px; }
+    .loading { color: #555; font-size: 0.85rem; text-align: center; padding: 24px; }
+
+    /* Session log */
+    .result-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; }
+    .log-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 16px; border-top: 1px solid #1e1e1e; font-size: 0.82rem;
+    }
+    .log-row:first-child { border-top: none; }
+    .log-time { color: #555; white-space: nowrap; min-width: 64px; padding-top: 2px; }
+    .log-text { color: #777; line-height: 1.5; }
+    .log-text b { color: #aaa; font-weight: 600; }
+
+    /* Records */
+    .date-group { margin-bottom: 32px; }
+    .date-label { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .date-label-text { font-size: 0.95rem; font-weight: 700; color: #ddd; }
+    .date-label-sub  { font-size: 0.78rem; color: #555; }
+    .date-label-line { flex: 1; height: 1px; background: #222; min-width: 12px; }
+    .date-label-count {
+      font-size: 0.72rem; color: #555; background: #1e1e1e;
+      border: 1px solid #2a2a2a; border-radius: 20px; padding: 2px 8px; white-space: nowrap;
+    }
+    .records-empty { text-align: center; padding: 60px 20px; color: #444; font-size: 0.9rem; line-height: 1.8; }
+    .records-empty span { display: block; font-size: 2rem; margin-bottom: 12px; }
+    .records-top { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+      display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: #1a1a1a; border: 1px solid #333; border-radius: 16px;
+      padding: 24px; width: 100%; max-width: 460px;
+    }
+    .modal h2 { font-size: 1.1rem; margin-bottom: 20px; color: #eee; }
+    .modal label {
+      font-size: 0.74rem; color: #666; text-transform: uppercase;
+      letter-spacing: 0.06em; display: block; margin-bottom: 6px; margin-top: 14px;
+    }
+    .modal label:first-of-type { margin-top: 0; }
+    .modal input {
+      width: 100%; background: #111; border: 1px solid #2a2a2a; color: #f0f0f0;
+      border-radius: 8px; padding: 11px 12px; font-size: 16px; outline: none;
+    }
+    .modal input:focus { border-color: #555; }
+    .modal-row { display: flex; gap: 10px; }
+    .modal-row > * { flex: 1; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+    .modal-actions button { flex: 1; padding: 12px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: #ff4545; color: #fff; } .btn-primary:hover { background: #ff3333; }
+    .btn-cancel  { background: #222; color: #888; }   .btn-cancel:hover { background: #2a2a2a; color: #ccc; }
+
+    /* Install bar */
+    .install-bar {
+      width: 100%; max-width: 760px;
+      display: none; align-items: center; gap: 12px;
+      background: #15201a; border: 1px solid #1f4030; color: #9fe7bf;
+      border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.82rem;
+    }
+    .install-bar.show { display: flex; }
+    .install-bar button { border: none; border-radius: 7px; cursor: pointer; font-size: 0.78rem; font-weight: 700; padding: 8px 12px; }
+    .install-bar .install-go { background: #2ec07a; color: #06210f; margin-left: auto; }
+    .install-bar .install-x  { background: transparent; color: #5a8a6e; padding: 8px 6px; }
+
+    /* ── Touch ergonomics (all screen sizes) ── */
+    button, .tab-btn, .editable, .delete-btn, .delete-btn-rec, #micBtn, a, label, input {
+      touch-action: manipulation;                 /* kill 300ms tap delay + double-tap zoom */
+    }
+    .app-header, .tabs, .section-title, .mic-label, .date-label, thead th {
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    }
+    .table-wrap { -webkit-overflow-scrolling: touch; }
+    body { overscroll-behavior-y: contain; }       /* tame rubber-band scrolling */
+
+    /* ── Mobile (phones) ── */
+    @media (max-width: 600px) {
+      body { padding-bottom: calc(88px + var(--safe-bottom)); }   /* clear bottom bar */
+      h1 { font-size: 1.5rem; }
+      .api-banner { display: none; }
+      .app-header { margin-bottom: 16px; }
+
+      /* Tabs become a fixed bottom navigation bar */
+      .tabs {
+        position: fixed; left: 0; right: 0; bottom: 0;
+        width: 100%; max-width: none; margin: 0;
+        border: none; border-top: 1px solid #2a2a2a; border-radius: 0;
+        background: #141414; z-index: 50;
+        padding: 6px 10px calc(6px + var(--safe-bottom)); gap: 6px;
+      }
+      .tab-btn { padding: 13px 0; font-size: 0.82rem; }
+
+      /* Tables collapse into cards */
+      table { min-width: 0; }
+      thead { display: none; }
+      table, tbody, tr, td { display: block; width: 100%; }
+      tbody tr { position: relative; padding: 14px 16px 12px; border-top: 1px solid #1e1e1e; }
+      tbody tr:hover { background: none; }
+      td { padding: 5px 0; border: none; }
+
+      td.col-name   { font-size: 1.05rem; font-weight: 700; padding: 0 44px 4px 0; }
+      td.col-muscle { padding: 0 0 10px; }
+      td.col-num    { display: flex; align-items: center; justify-content: space-between; }
+      td.col-num::before {
+        content: attr(data-label);
+        color: #666; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+      }
+      td.col-del { position: absolute; top: 12px; right: 8px; width: auto; padding: 0; }
+      .delete-btn, .delete-btn-rec { font-size: 1.15rem; padding: 8px; }
+      .editable { padding: 7px 12px; }              /* bigger tap target */
+      .edit-input { width: 80px; }
+    }
+
+    /* ── Chips (Progress + Timer) ── */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .chip {
+      font-size: 0.8rem; padding: 8px 14px; border-radius: 20px;
+      border: 1px solid #2a2a2a; background: #1a1a1a; color: #888;
+      cursor: pointer; transition: all 0.15s; touch-action: manipulation;
+    }
+    .chip.active { background: #2a2a2a; color: #fff; border-color: #555; }
+
+    /* ── Progress ── */
+    .chart-box { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:14px; height:320px; position:relative; }
+    .prog-stats { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+    .stat-card { flex:1; min-width:100px; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:10px; padding:12px 14px; }
+    .stat-label { font-size:0.68rem; color:#666; text-transform:uppercase; letter-spacing:0.05em; }
+    .stat-val { font-size:1.3rem; font-weight:800; margin-top:4px; }
+    .stat-val small { font-size:0.8rem; color:#777; font-weight:600; }
+    .prog-empty { color:#555; font-size:0.9rem; text-align:center; padding:50px 20px; line-height:1.7; display:none; }
+
+    /* ── Rest timer ── */
+    .timer-card { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:18px; text-align:center; }
+    .timer-display { font-size:3.2rem; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:2px; margin-bottom:14px; }
+    .timer-display.done { color:#ff4545; animation: flash 0.5s ease-in-out 4; }
+    @keyframes flash { 50% { opacity:0.25; } }
+    .timer-presets { justify-content:center; margin-bottom:0; }
+    .timer-custom { display:flex; gap:8px; justify-content:center; margin:12px 0; }
+    .timer-actions { display:flex; gap:10px; margin-top:4px; }
+    .timer-btn { flex:1; padding:13px; border:none; border-radius:9px; font-weight:700; font-size:0.95rem; cursor:pointer; touch-action:manipulation; }
+    .timer-btn.start { background:#ff4545; color:#fff; }
+    .timer-btn.start.running { background:#ff9f43; color:#1a1a1a; }
+    .timer-btn.reset { background:#222; color:#999; }
+  </style>
+</head>
+<body>
+
+<!-- ════════ AUTH SCREEN ════════ -->
+<div id="authScreen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">🎙️</div>
+    <div class="auth-title">Set</div>
+    <div class="auth-sub" id="authSub">Speak your sets — log in to start</div>
+
+    <label>Email</label>
+    <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email" />
+
+    <label>Password</label>
+    <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password" />
+
+    <button class="auth-btn" id="authSubmit">Log In</button>
+
+    <div class="auth-msg" id="authMsg"></div>
+
+    <div class="auth-toggle" id="authToggle">
+      No account? <a id="authToggleLink">Sign up</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ APP ════════ -->
+<div id="appRoot" style="display:none; width:100%; display:flex; flex-direction:column; align-items:center;">
+
+  <div class="app-header">
+    <div>
+      <h1 style="font-size:1.5rem">🎙️ Set</h1>
+      <span class="who">Signed in as <b id="userEmail">—</b></span>
+    </div>
+    <button class="btn-sm" id="logoutBtn">Log out</button>
+  </div>
+
+  <div class="api-banner">
+    <span class="api-dot"></span>
+    Groq Whisper → Claude Haiku → Supabase (your private data)
+  </div>
+
+  <div class="install-bar" id="installBar">
+    <span id="installText">Install GymApp on your phone for a full-screen app.</span>
+    <button class="install-go" id="installGo">Install</button>
+    <button class="install-x" id="installX" aria-label="Dismiss">✕</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="log">Log</button>
+    <button class="tab-btn" data-tab="progress">Progress</button>
+    <button class="tab-btn" data-tab="records">Records</button>
+  </div>
+
+  <!-- LOG TAB -->
+  <div class="tab-panel active" id="tab-log">
+    <div class="mic-wrap">
+      <button id="micBtn">🎙️</button>
+      <span class="mic-label" id="micLabel">Tap to log a set</span>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-title">Rest timer</span></div>
+      <div class="timer-card">
+        <div class="timer-display" id="timerDisplay">01:30</div>
+        <div class="chip-row timer-presets">
+          <button class="chip" data-sec="60">1:00</button>
+          <button class="chip active" data-sec="90">1:30</button>
+          <button class="chip" data-sec="120">2:00</button>
+          <button class="chip" data-sec="180">3:00</button>
+        </div>
+        <div class="timer-custom">
+          <button class="btn-sm" id="timerMinus">−15s</button>
+          <button class="btn-sm" id="timerPlus">+15s</button>
+        </div>
+        <div class="timer-actions">
+          <button class="timer-btn start" id="timerStart">Start</button>
+          <button class="timer-btn reset" id="timerReset">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span class="section-title">You said</span></div>
+      <div class="transcript-box" id="transcriptBox">Your words will appear here as you speak...</div>
+    </div>
+    <div class="section">
+      <div class="status" id="status"></div>
+      <div class="section-header">
+        <span class="section-title">Today's workout</span>
+        <button class="btn-sm danger" id="clearTodayBtn">Clear today</button>
+      </div>
+      <div class="table-wrap" id="tableWrap"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-title">Session log</span></div>
+      <div class="result-box" id="historyBox"><div class="empty">No entries this session</div></div>
+    </div>
+  </div>
+
+  <!-- PROGRESS TAB -->
+  <div class="tab-panel" id="tab-progress">
+    <div class="section-header"><span class="section-title">Progress by muscle group</span></div>
+    <div class="chip-row" id="muscleChips"></div>
+    <div class="chip-row" id="metricToggle">
+      <button class="chip metric-chip active" data-metric="weight">Weight</button>
+      <button class="chip metric-chip" data-metric="reps">Reps</button>
+      <button class="chip metric-chip" data-metric="volume">Volume</button>
+    </div>
+    <div class="chart-box"><canvas id="progChart"></canvas></div>
+    <div id="progStats" class="prog-stats"></div>
+    <div id="progEmpty" class="prog-empty">No data yet — log some sets with weight or reps, then come back to see your progress charted over time.</div>
+  </div>
+
+  <!-- RECORDS TAB -->
+  <div class="tab-panel" id="tab-records">
+    <div class="records-top">
+      <button class="btn-sm" id="addForDateBtn">+ Add workout for a date</button>
+    </div>
+    <div id="recordsWrap"><div class="loading">Loading…</div></div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add workout entry</h2>
+    <label>Date</label>
+    <input type="date" id="modalDate" />
+    <label>Exercise name</label>
+    <input type="text" id="modalName" placeholder="e.g. Bench Press" />
+    <div class="modal-row">
+      <div><label>Sets</label><input type="number" id="modalSets" placeholder="—" min="1" inputmode="numeric" /></div>
+      <div><label>Reps</label><input type="number" id="modalReps" placeholder="—" min="1" inputmode="numeric" /></div>
+      <div><label>Weight (kg)</label><input type="number" id="modalWeight" placeholder="—" min="0" step="0.5" inputmode="decimal" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modalCancel">Cancel</button>
+      <button class="btn-primary" id="modalSave">Add exercise</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Config ────────────────────────────────────────────────────────────────
+  // Groq + OpenRouter keys now live server-side (Vercel env vars) and are called
+  // through /api/transcribe and /api/parse — never exposed in the browser.
+  // The Supabase anon key below is safe to ship publicly; RLS protects the data.
+  const SB_URL         = 'https://xfvpijvpfmgstmevkhey.supabase.co';
+  const SB_KEY         = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdnBpanZwZm1nc3RtZXZraGV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDMxNTksImV4cCI6MjA5NTgxOTE1OX0.pGSupt1Bq2Ao72m-f9YAm0oITZOxN31LkugcwEwACko';
+
+  const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+  // ── DB helpers (RLS auto-scopes every query to the logged-in user) ─────────
+  async function dbGetAll() {
+    const { data, error } = await sb.from('workouts').select('*')
+      .order('date', { ascending: false }).order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  async function dbInsert(rows) {
+    const { data, error } = await sb.from('workouts').insert(rows).select();
+    if (error) throw error; return data;
+  }
+  async function dbUpdate(id, fields) {
+    const { error } = await sb.from('workouts').update(fields).eq('id', id);
+    if (error) throw error;
+  }
+  async function dbDelete(id) {
+    const { error } = await sb.from('workouts').delete().eq('id', id);
+    if (error) throw error;
+  }
+  async function dbDeleteDate(date) {
+    const { error } = await sb.from('workouts').delete().eq('date', date);
+    if (error) throw error;
+  }
+
+  // ── Muscle inference fallback ─────────────────────────────────────────────
+  const MUSCLE_MAP = {
+    chest:['bench press','chest press','chest fly','pec deck','push up','incline press','decline press','cable fly','dumbbell fly','dumbbell press'],
+    back:['deadlift','row','pull up','pull down','lat pulldown','chin up','seated row','t-bar','back extension','good morning','rack pull'],
+    legs:['squat','leg press','lunge','leg curl','leg extension','calf raise','hack squat','romanian deadlift','rdl','glute bridge','hip thrust','step up'],
+    shoulders:['overhead press','shoulder press','lateral raise','front raise','face pull','arnold press','upright row','shrug','military press'],
+    arms:['curl','tricep','bicep','hammer curl','skull crusher','preacher curl','cable curl','dip','close grip','pushdown','kickback'],
+    core:['plank','crunch','sit up','ab wheel','cable crunch','russian twist','leg raise','hanging raise','mountain climber'],
+    neck:['neck curl','neck extension','neck lateral','neck press'],
+  };
+  function inferMuscle(name) {
+    const l = name.toLowerCase();
+    for (const [g, kws] of Object.entries(MUSCLE_MAP)) if (kws.some(k => l.includes(k))) return g;
+    return 'other';
+  }
+
+  function todayKey() { return new Date().toISOString().slice(0, 10); }
+  function formatDateLabel(dk) {
+    const [y,m,d] = dk.split('-').map(Number);
+    const date = new Date(y, m-1, d); date.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yest = new Date(today); yest.setDate(today.getDate()-1);
+    const full = date.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    if (+date === +today) return { main:'Today', sub:full };
+    if (+date === +yest)  return { main:'Yesterday', sub:full };
+    return { main: date.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}), sub: String(date.getFullYear()) };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  AUTH
+  // ════════════════════════════════════════════════════════════════════════
+  const authScreen   = document.getElementById('authScreen');
+  const appRoot      = document.getElementById('appRoot');
+  const authEmail    = document.getElementById('authEmail');
+  const authPassword = document.getElementById('authPassword');
+  const authSubmit   = document.getElementById('authSubmit');
+  const authMsg      = document.getElementById('authMsg');
+  const authSub      = document.getElementById('authSub');
+  const authToggle   = document.getElementById('authToggle');
+  const authToggleLink = document.getElementById('authToggleLink');
+
+  let mode = 'login';          // 'login' | 'signup'
+  let currentUser = null;
+
+  function showAuthMsg(text, kind) { authMsg.textContent = text; authMsg.className = 'auth-msg ' + kind; }
+  function clearAuthMsg() { authMsg.className = 'auth-msg'; authMsg.textContent = ''; }
+
+  function setMode(m) {
+    mode = m;
+    clearAuthMsg();
+    if (m === 'login') {
+      authSub.textContent = 'Speak your sets — log in to start';
+      authSubmit.textContent = 'Log In';
+      authToggle.innerHTML = 'No account? <a id="authToggleLink">Sign up</a>';
+    } else {
+      authSub.textContent = 'Create an account to get started';
+      authSubmit.textContent = 'Sign Up';
+      authToggle.innerHTML = 'Already have an account? <a id="authToggleLink">Log in</a>';
+    }
+    document.getElementById('authToggleLink').addEventListener('click',
+      () => setMode(mode === 'login' ? 'signup' : 'login'));
+  }
+  authToggleLink.addEventListener('click', () => setMode('signup'));
+
+  async function handleAuthSubmit() {
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    if (!email || !password) { showAuthMsg('Enter your email and password.', 'error'); return; }
+    if (password.length < 6)  { showAuthMsg('Password must be at least 6 characters.', 'error'); return; }
+
+    authSubmit.disabled = true;
+    authSubmit.textContent = mode === 'login' ? 'Logging in…' : 'Signing up…';
+    clearAuthMsg();
+
+    try {
+      if (mode === 'login') {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        // onAuthStateChange will switch to the app
+      } else {
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.session) {
+          // logged in immediately (email confirmation disabled)
+        } else {
+          setMode('login');
+          showAuthMsg('Account created! Check your email to confirm, then log in.', 'info');
+        }
+      }
+    } catch (err) {
+      showAuthMsg(err.message || 'Something went wrong.', 'error');
+    } finally {
+      authSubmit.disabled = false;
+      authSubmit.textContent = mode === 'login' ? 'Log In' : 'Sign Up';
+    }
+  }
+  authSubmit.addEventListener('click', handleAuthSubmit);
+  authPassword.addEventListener('keydown', e => { if (e.key === 'Enter') handleAuthSubmit(); });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+  });
+
+  function showAuth() {
+    currentUser = null;
+    appRoot.style.display = 'none';
+    authScreen.style.display = 'flex';
+  }
+  async function enterApp(user) {
+    if (currentUser && currentUser.id === user.id) return;
+    currentUser = user;
+    authScreen.style.display = 'none';
+    appRoot.style.display = 'flex';
+    document.getElementById('userEmail').textContent = user.email;
+    authEmail.value = ''; authPassword.value = '';
+    await loadAll();
+  }
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    if (session && session.user) enterApp(session.user);
+    else showAuth();
+  });
+  // initial check
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session && session.user) enterApp(session.user); else showAuth();
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  APP STATE + RENDERING
+  // ════════════════════════════════════════════════════════════════════════
+  let allRows = [];
+  let sessionLog = [];
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'records') renderRecords();
+      if (btn.dataset.tab === 'progress') renderProgress();
+    });
+  });
+
+  function editableCell(value, unit, field, rowId) {
+    const isEmpty = value == null;
+    return `<span class="editable ${isEmpty?'empty':''}" data-field="${field}" data-id="${rowId}" title="Tap to edit">
+      <span class="val">${isEmpty?'—':value}</span><span class="unit">${isEmpty?'':unit}</span></span>`;
+  }
+  function attachEditables(container) {
+    container.querySelectorAll('.editable').forEach(el => {
+      el.addEventListener('click', () => {
+        if (el.querySelector('.edit-input')) return;
+        const field = el.dataset.field, id = el.dataset.id;
+        const row = allRows.find(r => r.id === id);
+        const input = document.createElement('input');
+        input.className = 'edit-input'; input.type = 'number';
+        input.value = row?.[field] ?? ''; input.min = '0';
+        input.step = field === 'weight_kg' ? '0.5' : '1';
+        input.inputMode = field === 'weight_kg' ? 'decimal' : 'numeric';   // mobile number pad
+        el.innerHTML = ''; el.appendChild(input); input.focus();
+        async function commit() {
+          const newVal = input.value.trim() === '' ? null : parseFloat(input.value);
+          try {
+            await dbUpdate(id, { [field]: newVal });
+            const idx = allRows.findIndex(r => r.id === id);
+            if (idx !== -1) allRows[idx][field] = newVal;
+          } catch(e) { console.error(e); }
+          renderTable(); renderRecords();
+        }
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') input.blur();
+          if (e.key === 'Escape') { input.removeEventListener('blur', commit); renderTable(); renderRecords(); }
+        });
+      });
+    });
+  }
+
+  function renderTable() {
+    const wrap = document.getElementById('tableWrap');
+    const rows = allRows.filter(r => r.date === todayKey());
+    if (!rows.length) { wrap.innerHTML = '<div class="empty">Say something like "4 sets of bench press, 80 kg, 10 reps"</div>'; return; }
+    const tbody = rows.map(ex => {
+      const m = ex.muscle || inferMuscle(ex.name);
+      return `<tr>
+        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span></td>
+        <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
+        <td class="col-num" data-label="Sets">${editableCell(ex.sets,'sets','sets',ex.id)}</td>
+        <td class="col-num" data-label="Reps">${editableCell(ex.reps,'reps','reps',ex.id)}</td>
+        <td class="col-num" data-label="Weight">${editableCell(ex.weight_kg,'kg','weight_kg',ex.id)}</td>
+        <td class="delete-cell col-del"><button class="delete-btn" data-id="${ex.id}">✕</button></td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table><thead><tr><th>Exercise</th><th>Muscle</th><th>Sets</th><th>Reps</th><th>Weight</th><th></th></tr></thead><tbody>${tbody}</tbody></table>`;
+    attachEditables(wrap);
+    wrap.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try { await dbDelete(btn.dataset.id); allRows = allRows.filter(r => r.id !== btn.dataset.id); renderTable(); renderRecords(); }
+      catch(e){ console.error(e); btn.disabled = false; }
+    }));
+  }
+
+  function renderLog() {
+    const box = document.getElementById('historyBox');
+    if (!sessionLog.length) { box.innerHTML = '<div class="empty">No entries this session</div>'; return; }
+    box.innerHTML = sessionLog.slice().reverse().map(en => `
+      <div class="log-row"><span class="log-time">${en.time}</span>
+      <span class="log-text">"${en.transcript}" → ${en.exercises.map(e =>
+        `<b>${e.name}</b>${e.sets?' '+e.sets+'×':''}${e.reps?e.reps+' reps':''}${e.weight_kg?' '+e.weight_kg+'kg':''}`).join(', ')}</span></div>`).join('');
+  }
+
+  function renderRecords() {
+    const wrap = document.getElementById('recordsWrap');
+    if (!allRows.length) { wrap.innerHTML = `<div class="records-empty"><span>📋</span>No records yet — log a workout and it'll appear here.</div>`; return; }
+    const grouped = {};
+    for (const r of allRows) { (grouped[r.date] ||= []).push(r); }
+    const dks = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+    wrap.innerHTML = dks.map(dk => {
+      const exs = grouped[dk]; const label = formatDateLabel(dk);
+      const rows = exs.map(ex => {
+        const m = ex.muscle || inferMuscle(ex.name);
+        return `<tr>
+          <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span></td>
+          <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
+          <td class="col-num" data-label="Sets">${editableCell(ex.sets,'sets','sets',ex.id)}</td>
+          <td class="col-num" data-label="Reps">${editableCell(ex.reps,'reps','reps',ex.id)}</td>
+          <td class="col-num" data-label="Weight">${editableCell(ex.weight_kg,'kg','weight_kg',ex.id)}</td>
+          <td class="delete-cell col-del"><button class="delete-btn-rec" data-id="${ex.id}">✕</button></td>
+        </tr>`;
+      }).join('');
+      return `<div class="date-group" id="dg-${dk}">
+        <div class="date-label">
+          <div><span class="date-label-text">${label.main}</span><span class="date-label-sub"> &nbsp;${label.sub}</span></div>
+          <div class="date-label-line"></div>
+          <span class="date-label-count">${exs.length} exercise${exs.length!==1?'s':''}</span>
+          <button class="btn-sm" data-add-dk="${dk}">+ Add</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Exercise</th><th>Muscle</th><th>Sets</th><th>Reps</th><th>Weight</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table></div>
+      </div>`;
+    }).join('');
+    dks.forEach(dk => { const g = document.getElementById('dg-'+dk); if (g) attachEditables(g); });
+    wrap.querySelectorAll('.delete-btn-rec').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try { await dbDelete(btn.dataset.id); allRows = allRows.filter(r => r.id !== btn.dataset.id); renderTable(); renderRecords(); }
+      catch(e){ console.error(e); btn.disabled = false; }
+    }));
+    wrap.querySelectorAll('[data-add-dk]').forEach(btn => btn.addEventListener('click', () => openModal(btn.dataset.addDk)));
+  }
+
+  async function loadAll() {
+    try { allRows = await dbGetAll(); }
+    catch(e) { console.error(e); setStatus('⚠️ Could not load your data', false); }
+    renderTable(); renderRecords();
+  }
+
+  document.getElementById('clearTodayBtn').addEventListener('click', async () => {
+    try { await dbDeleteDate(todayKey()); allRows = allRows.filter(r => r.date !== todayKey()); renderTable(); renderRecords(); }
+    catch(e){ console.error(e); }
+  });
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  function openModal(dk) {
+    const inp = document.getElementById('modalDate');
+    inp.value = dk || todayKey(); inp.disabled = !!dk;
+    document.getElementById('modalTitle').textContent = dk ? `Add exercise — ${formatDateLabel(dk).main}` : 'Add workout for a date';
+    ['modalName','modalSets','modalReps','modalWeight'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    document.getElementById('modalName').focus();
+  }
+  document.getElementById('addForDateBtn').addEventListener('click', () => openModal(null));
+  document.getElementById('modalCancel').addEventListener('click', () => document.getElementById('modalOverlay').classList.add('hidden'));
+  document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden'); });
+  document.getElementById('modalSave').addEventListener('click', async () => {
+    const name = document.getElementById('modalName').value.trim();
+    if (!name) { document.getElementById('modalName').focus(); return; }
+    const dk = document.getElementById('modalDate').value || todayKey();
+    const num = id => document.getElementById(id).value ? +document.getElementById(id).value : null;
+    const ex = { user_id: currentUser.id, date: dk, name, muscle: inferMuscle(name), sets: num('modalSets'), reps: num('modalReps'), weight_kg: num('modalWeight') };
+    const saveBtn = document.getElementById('modalSave');
+    saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
+    try {
+      await dbInsert([ex]);
+      allRows = await dbGetAll();
+      document.getElementById('modalOverlay').classList.add('hidden');
+      renderTable(); renderRecords();
+      document.querySelector('[data-tab="records"]').click();
+    } catch(e) { alert('Failed to save: ' + e.message); }
+    saveBtn.textContent = 'Add exercise'; saveBtn.disabled = false;
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  VOICE: MediaRecorder → Groq Whisper → Claude Haiku → Supabase
+  // ════════════════════════════════════════════════════════════════════════
+  const micBtn = document.getElementById('micBtn');
+  const micLabel = document.getElementById('micLabel');
+  const transcriptBox = document.getElementById('transcriptBox');
+  const statusEl = document.getElementById('status');
+  let mediaRecorder = null, audioChunks = [], isListening = false, elapsedTimer = null, elapsedSecs = 0;
+
+  async function startListening() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      const mt = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+               : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+               : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+      mediaRecorder = mt ? new MediaRecorder(stream,{mimeType:mt}) : new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); processAudio(); };
+      mediaRecorder.start(100);
+      isListening = true; micBtn.classList.add('listening');
+      transcriptBox.textContent = 'Recording…'; transcriptBox.className = 'transcript-box interim';
+      elapsedSecs = 0; micLabel.textContent = 'Recording 0s — click to stop';
+      elapsedTimer = setInterval(() => { elapsedSecs++; micLabel.textContent = `Recording ${elapsedSecs}s — click to stop`; }, 1000);
+    } catch (err) { setStatus(`⚠️ Mic error: ${err.message}`, false); }
+  }
+  function stopListening() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+    clearInterval(elapsedTimer); isListening = false;
+    micBtn.classList.remove('listening'); micLabel.textContent = 'Click to start';
+    mediaRecorder.stop();
+  }
+  micBtn.addEventListener('click', () => isListening ? stopListening() : startListening());
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload  = () => resolve(r.result.split(',')[1]);   // strip "data:...;base64,"
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  async function processAudio() {
+    setStatus('<span class="spinner"></span> Transcribing…', true);
+    transcriptBox.textContent = 'Processing audio…'; transcriptBox.className = 'transcript-box interim';
+    try {
+      const mt   = mediaRecorder.mimeType || 'audio/webm';
+      const blob = new Blob(audioChunks, { type: mt });
+      const audio = await blobToBase64(blob);
+
+      const res = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio, mime: mt }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setStatus(`⚠️ Transcription failed: ${data.error || res.status}`, false); transcriptBox.className = 'transcript-box'; return; }
+
+      const transcript = (data.text || '').trim();
+      if (!transcript) { setStatus('⚠️ Empty transcript — try speaking more clearly', false); transcriptBox.textContent = 'Nothing detected.'; transcriptBox.className = 'transcript-box'; return; }
+      transcriptBox.textContent = transcript; transcriptBox.className = 'transcript-box';
+      setStatus('<span class="spinner"></span> AI is parsing your workout…', true);
+      await parseWithAI(transcript);
+    } catch (err) { setStatus(`⚠️ Transcription error: ${err.message}`, false); transcriptBox.className = 'transcript-box'; }
+  }
+
+  async function parseWithAI(text) {
+    try {
+      const res = await fetch('/api/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setStatus(`⚠️ Parse failed: ${data.error || res.status}`, false); return; }
+      const exercises = data.exercises ?? [];
+      if (!exercises.length) { setStatus('No exercises detected — try again', false); return; }
+      exercises.forEach(ex => { if (!ex.muscle) ex.muscle = inferMuscle(ex.name); });
+      setStatus('<span class="spinner"></span> Saving…', true);
+      const rows = exercises.map(ex => ({ user_id: currentUser.id, date: todayKey(), name: ex.name, muscle: ex.muscle, sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg }));
+      await dbInsert(rows);
+      allRows = await dbGetAll();
+      sessionLog.push({ time: new Date().toLocaleTimeString(), transcript: text, exercises });
+      renderTable(); renderLog();
+      setStatus(`✓ Saved ${exercises.length} exercise${exercises.length>1?'s':''}`, false);
+    } catch (err) { setStatus(`⚠️ Error: ${err.message}`, false); }
+  }
+
+  function setStatus(html, active) { statusEl.innerHTML = html; statusEl.className = 'status' + (active ? ' active' : ''); }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  PROGRESS (charts via Chart.js)
+  // ════════════════════════════════════════════════════════════════════════
+  const MUSCLE_ORDER = ['chest','back','legs','shoulders','arms','core','neck','other'];
+  const EX_COLORS = ['#ff6b6b','#6bb5ff','#6bff8e','#ffe56b','#c46bff','#ffaa6b','#6bffee','#ff8ec4','#9e9e9e'];
+  let progMuscle = null, progMetric = 'weight', progChart = null;
+
+  const fmtShortDate = dk => {
+    const [y,m,d] = dk.split('-').map(Number);
+    return new Date(y,m-1,d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  };
+
+  // value for one exercise on one date, given the chosen metric
+  function metricForDate(rows, metric){
+    if (metric === 'volume'){
+      let v = 0, any = false;
+      rows.forEach(r => { if (r.weight_kg!=null && r.reps!=null){ v += (r.sets||1)*r.reps*r.weight_kg; any=true; } });
+      return any ? Math.round(v) : null;
+    }
+    const key = metric === 'weight' ? 'weight_kg' : 'reps';
+    const vals = rows.map(r => r[key]).filter(v => v!=null);
+    return vals.length ? Math.max(...vals) : null;
+  }
+
+  function renderProgress(){
+    const chipsEl = document.getElementById('muscleChips');
+    const emptyEl = document.getElementById('progEmpty');
+    const statsEl = document.getElementById('progStats');
+    const chartBox = document.querySelector('.chart-box');
+    const toggle = document.getElementById('metricToggle');
+
+    const present = MUSCLE_ORDER.filter(mg => allRows.some(r => (r.muscle||inferMuscle(r.name))===mg));
+    if (!present.length){
+      chipsEl.innerHTML=''; statsEl.innerHTML='';
+      chartBox.style.display='none'; toggle.style.display='none'; emptyEl.style.display='block';
+      if (progChart){ progChart.destroy(); progChart=null; }
+      return;
+    }
+    emptyEl.style.display='none'; chartBox.style.display=''; toggle.style.display='';
+    if (!present.includes(progMuscle)) progMuscle = present[0];
+
+    chipsEl.innerHTML = present.map(mg =>
+      `<button class="chip ${mg===progMuscle?'active':''}" data-mg="${mg}">${mg}</button>`).join('');
+    chipsEl.querySelectorAll('[data-mg]').forEach(b =>
+      b.addEventListener('click', () => { progMuscle = b.dataset.mg; renderProgress(); }));
+
+    const rows = allRows.filter(r => (r.muscle||inferMuscle(r.name))===progMuscle);
+    const dates = [...new Set(rows.map(r => r.date))].sort();
+    const labels = dates.map(fmtShortDate);
+    const exNames = [...new Set(rows.map(r => r.name))];
+
+    const datasets = exNames.map((name, i) => {
+      const data = dates.map(dk => {
+        const dayRows = rows.filter(r => r.name===name && r.date===dk);
+        return dayRows.length ? metricForDate(dayRows, progMetric) : null;
+      });
+      const color = EX_COLORS[i % EX_COLORS.length];
+      return { label:name, data, borderColor:color, backgroundColor:color,
+               tension:0.25, spanGaps:true, pointRadius:4, borderWidth:2 };
+    });
+
+    if (progChart) progChart.destroy();
+    progChart = new Chart(document.getElementById('progChart'), {
+      type:'line',
+      data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'nearest', intersect:false },
+        plugins:{ legend:{ labels:{ color:'#aaa', boxWidth:12, font:{size:11} } } },
+        scales:{
+          x:{ ticks:{ color:'#777' }, grid:{ color:'#1e1e1e' } },
+          y:{ ticks:{ color:'#777' }, grid:{ color:'#1e1e1e' }, beginAtZero: progMetric==='volume' }
+        }
+      }
+    });
+
+    // summary stats
+    const vals = [];
+    dates.forEach(dk => exNames.forEach(name => {
+      const dayRows = rows.filter(r => r.name===name && r.date===dk);
+      const v = dayRows.length ? metricForDate(dayRows, progMetric) : null;
+      if (v!=null) vals.push({ dk, v });
+    }));
+    const unit = progMetric==='weight' ? 'kg' : progMetric==='reps' ? 'reps' : 'vol';
+    if (vals.length){
+      const best = Math.max(...vals.map(a=>a.v));
+      const last = dates[dates.length-1];
+      const latest = Math.max(...vals.filter(a=>a.dk===last).map(a=>a.v));
+      statsEl.innerHTML = `
+        <div class="stat-card"><div class="stat-label">Best</div><div class="stat-val">${best}<small> ${unit}</small></div></div>
+        <div class="stat-card"><div class="stat-label">Latest</div><div class="stat-val">${latest}<small> ${unit}</small></div></div>
+        <div class="stat-card"><div class="stat-label">Sessions</div><div class="stat-val">${dates.length}</div></div>`;
+    } else {
+      statsEl.innerHTML = `<div class="stat-card"><div class="stat-label">No ${progMetric} logged</div><div class="stat-val">—</div></div>`;
+    }
+  }
+
+  document.querySelectorAll('.metric-chip').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.metric-chip').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); progMetric = b.dataset.metric; renderProgress();
+  }));
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  REST TIMER
+  // ════════════════════════════════════════════════════════════════════════
+  let timerTotal=90, timerRemain=90, timerRunning=false, timerId=null, audioCtx=null;
+  const timerDisplay  = document.getElementById('timerDisplay');
+  const timerStartBtn = document.getElementById('timerStart');
+
+  const fmtTime = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const drawTimer = () => { timerDisplay.textContent = fmtTime(timerRemain); };
+  function setTimer(sec){ timerTotal=sec; timerRemain=sec; timerDisplay.classList.remove('done'); drawTimer(); }
+
+  function ensureAudio(){
+    if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+    if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+  }
+  function beep(){
+    if(!audioCtx) return;
+    [0, 0.25].forEach(t0 => {
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination); o.type='sine'; o.frequency.value=880;
+      const t=audioCtx.currentTime+t0;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.4,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.18);
+      o.start(t); o.stop(t+0.2);
+    });
+  }
+  function stopTimer(){ timerRunning=false; timerStartBtn.textContent='Start'; timerStartBtn.classList.remove('running'); clearInterval(timerId); }
+  function tick(){
+    timerRemain--;
+    if(timerRemain<=0){
+      timerRemain=0; drawTimer(); stopTimer();
+      timerDisplay.classList.add('done');
+      try{ navigator.vibrate && navigator.vibrate([300,150,300]); }catch(e){}
+      beep(); return;
+    }
+    drawTimer();
+  }
+  function startOrPause(){
+    ensureAudio();
+    if(timerRunning){ stopTimer(); return; }
+    if(timerRemain<=0) timerRemain=timerTotal;
+    timerDisplay.classList.remove('done');
+    timerRunning=true; timerStartBtn.textContent='Pause'; timerStartBtn.classList.add('running');
+    timerId=setInterval(tick,1000);
+  }
+  const clearPresets = () => document.querySelectorAll('.timer-presets .chip').forEach(x=>x.classList.remove('active'));
+  timerStartBtn.addEventListener('click', startOrPause);
+  document.getElementById('timerReset').addEventListener('click', ()=>{ stopTimer(); setTimer(timerTotal); });
+  document.getElementById('timerPlus').addEventListener('click', ()=>{ stopTimer(); clearPresets(); setTimer(timerTotal+15); });
+  document.getElementById('timerMinus').addEventListener('click', ()=>{ stopTimer(); clearPresets(); setTimer(Math.max(15,timerTotal-15)); });
+  document.querySelectorAll('.timer-presets .chip').forEach(c => c.addEventListener('click', ()=>{
+    clearPresets(); c.classList.add('active'); stopTimer(); setTimer(+c.dataset.sec);
+  }));
+  setTimer(90);
+
+  // ── Install to home screen ────────────────────────────────────────────────
+  const installBar  = document.getElementById('installBar');
+  const installText  = document.getElementById('installText');
+  const installGo    = document.getElementById('installGo');
+  let deferredPrompt = null;
+
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const isiOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const dismissed = () => localStorage.getItem('gymapp_install_dismissed') === '1';
+
+  // Android / desktop Chrome: capture the native install prompt
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone() && !dismissed()) {
+      installText.textContent = 'Install GymApp for a full-screen app.';
+      installGo.style.display = '';
+      installBar.classList.add('show');
+    }
+  });
+
+  installGo.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBar.classList.remove('show');
+  });
+
+  document.getElementById('installX').addEventListener('click', () => {
+    installBar.classList.remove('show');
+    localStorage.setItem('gymapp_install_dismissed', '1');
+  });
+
+  // iOS Safari has no install API — show the manual "Add to Home Screen" hint
+  if (isiOS() && !isStandalone() && !dismissed()) {
+    installText.textContent = 'Install: tap the Share icon, then "Add to Home Screen".';
+    installGo.style.display = 'none';
+    installBar.classList.add('show');
+  }
+
+  // ── Register service worker (PWA / installable) ───────────────────────────
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
