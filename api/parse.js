@@ -1,4 +1,4 @@
-// /api/parse — turns a transcript into structured exercises via OpenRouter (Claude Haiku).
+// /api/parse — turns a transcript into structured exercises via OpenRouter (DeepSeek V4 Pro).
 // The OPENROUTER_API_KEY lives in a Vercel environment variable, never in the browser.
 // Client sends JSON: { transcript: "..." }  →  returns { exercises: [...] }
 
@@ -33,11 +33,11 @@ Rules:
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
-        'HTTP-Referer': 'https://gymapp.vercel.app',
-        'X-Title': 'GymApp',
+        'HTTP-Referer': 'https://set-app.vercel.app',
+        'X-Title': 'Set',
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-haiku-4-5',
+        model: 'deepseek/deepseek-v4-pro',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
       }),
@@ -48,7 +48,13 @@ Rules:
 
     const raw = (data.choices?.[0]?.message?.content ?? '').replace(/```json|```/g, '').trim();
     let exercises = [];
-    try { exercises = JSON.parse(raw).exercises ?? []; } catch (_) { exercises = []; }
+    try {
+      exercises = JSON.parse(raw).exercises ?? [];
+    } catch (_) {
+      // DeepSeek may wrap the JSON in prose — grab the first {...} block
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) { try { exercises = JSON.parse(m[0]).exercises ?? []; } catch (_) {} }
+    }
 
     res.status(200).json({ exercises });
   } catch (e) {
