@@ -372,6 +372,27 @@
     .about-text b { color:#eee; }
     .about-link { color:#ff8585; text-decoration:none; font-weight:600; word-break:break-all; }
     .about-meta { font-size:0.8rem; color:#555; margin-top:6px; }
+
+    /* ── PR tag + voice feedback ── */
+    .pr-tag { font-size:0.62rem; font-weight:800; color:#ffd54a; background:#332a10; padding:2px 6px; border-radius:6px; white-space:nowrap; }
+    .feedback { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+    .feedback:empty { display:none; }
+    .fb-row { font-size:0.85rem; color:#999; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:9px; padding:9px 12px; }
+    .fb-row b { color:#ccc; }
+    .fb-row.pr { color:#ffe08a; border-color:#5a4a1a; background:#241d0d; animation: prpulse 0.6s ease-in-out 2; }
+    .fb-row.pr b { color:#fff; }
+    @keyframes prpulse { 50% { border-color:#ffd54a; box-shadow:0 0 14px rgba(255,213,74,0.25); } }
+
+    /* ── Week strip ── */
+    .week-strip { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:14px 16px; margin-bottom:24px; }
+    .week-dots { display:flex; justify-content:space-between; gap:6px; margin-bottom:10px; }
+    .day-dot { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
+    .day-dot .dot { width:22px; height:22px; border-radius:50%; background:#222; border:1px solid #2a2a2a; }
+    .day-dot.on .dot { background:#ff4545; border-color:#ff4545; }
+    .day-dot .dl { font-size:0.62rem; color:#555; text-transform:uppercase; }
+    .week-meta { display:flex; justify-content:space-between; font-size:0.82rem; color:#999; }
+    .week-meta .goal-hit { color:#6bff8e; font-weight:700; }
+    .week-meta .streak { color:#ffaa6b; font-weight:600; }
   </style>
 </head>
 <body>
@@ -442,6 +463,7 @@
 
   <!-- LOG TAB -->
   <div class="tab-panel active" id="tab-log">
+    <div class="week-strip" id="weekStrip"></div>
     <div class="mic-wrap">
       <button id="micBtn">🎙️</button>
       <span class="mic-label" id="micLabel">Tap to log a set</span>
@@ -450,6 +472,7 @@
     <div class="section">
       <div class="section-header"><span class="section-title">You said</span></div>
       <div class="transcript-box" id="transcriptBox">Your words will appear here as you speak...</div>
+      <div class="feedback" id="logFeedback"></div>
     </div>
     <div class="section">
       <div class="status" id="status"></div>
@@ -492,7 +515,7 @@
     <div class="section-header"><span class="section-title">Your profile</span></div>
     <div class="profile-card">
       <div class="modal-row">
-        <div><label class="fld-label">Weight (kg)</label><input type="number" id="profWeight" inputmode="decimal" min="20" step="0.5" placeholder="—" /></div>
+        <div><label class="fld-label" id="profWeightLabel">Weight (kg)</label><input type="number" id="profWeight" inputmode="decimal" min="20" step="0.5" placeholder="—" /></div>
         <div><label class="fld-label">Height (cm)</label><input type="number" id="profHeight" inputmode="numeric" min="100" step="1" placeholder="—" /></div>
       </div>
       <div class="modal-row" style="margin-top:14px">
@@ -509,6 +532,24 @@
       <div class="prof-msg" id="profMsg"></div>
     </div>
     <div class="prof-cards" id="profCards"></div>
+
+    <div class="profile-card" style="margin-top:20px">
+      <div class="card-title">Preferences</div>
+      <label class="fld-label">Units</label>
+      <div class="chip-row" id="unitChips">
+        <button class="chip" data-unit="kg">kg</button>
+        <button class="chip" data-unit="lb">lb</button>
+      </div>
+      <label class="fld-label" style="margin-top:6px">Weekly session goal</label>
+      <input type="number" id="profGoal" inputmode="numeric" min="1" max="14" placeholder="4" />
+      <button class="auth-btn" id="prefSave" style="margin-top:16px">Save preferences</button>
+      <div class="prof-msg" id="prefMsg"></div>
+    </div>
+
+    <div class="profile-card">
+      <div class="card-title">Your data</div>
+      <button class="btn-sm" id="exportCsv">Export workouts (CSV)</button>
+    </div>
 
     <div class="about-card">
       <div class="card-title">About</div>
@@ -533,7 +574,7 @@
     <div class="modal-row">
       <div><label>Sets</label><input type="number" id="modalSets" placeholder="—" min="1" inputmode="numeric" /></div>
       <div><label>Reps</label><input type="number" id="modalReps" placeholder="—" min="1" inputmode="numeric" /></div>
-      <div><label>Weight (kg)</label><input type="number" id="modalWeight" placeholder="—" min="0" step="0.5" inputmode="decimal" /></div>
+      <div><label id="modalWeightLabel">Weight (kg)</label><input type="number" id="modalWeight" placeholder="—" min="0" step="0.5" inputmode="decimal" /></div>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" id="modalCancel">Cancel</button>
@@ -701,6 +742,9 @@
     appRoot.style.display = 'flex';
     document.getElementById('userEmail').textContent = user.email;
     authEmail.value = ''; authPassword.value = '';
+    const m0 = currentUser.user_metadata || {};
+    units = m0.units || 'kg';
+    weeklyGoal = m0.weekly_goal || 4;
     await loadAll();
     // first-time users: nudge them to enter weight/height
     if (!(currentUser.user_metadata && currentUser.user_metadata.weight_kg)) {
@@ -722,6 +766,14 @@
   // ════════════════════════════════════════════════════════════════════════
   let allRows = [];
   let sessionLog = [];
+
+  // ── Units (everything is STORED in kg; this only affects display + input) ──
+  let units = 'kg';
+  const KG_PER_LB = 0.45359237;
+  const dispW = kg => kg==null ? null : (units==='lb' ? Math.round(kg/KG_PER_LB*10)/10 : kg);
+  const toKg  = v  => v==null ? null : (units==='lb' ? Math.round(v*KG_PER_LB*100)/100 : v);
+  let prNames = new Set();   // exercise names that set a PR this session
+  let weeklyGoal = 4;
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -748,12 +800,13 @@
         const row = allRows.find(r => r.id === id);
         const input = document.createElement('input');
         input.className = 'edit-input'; input.type = 'number';
-        input.value = row?.[field] ?? ''; input.min = '0';
+        input.value = (field === 'weight_kg' ? (dispW(row?.weight_kg) ?? '') : (row?.[field] ?? '')); input.min = '0';
         input.step = field === 'weight_kg' ? '0.5' : '1';
         input.inputMode = field === 'weight_kg' ? 'decimal' : 'numeric';   // mobile number pad
         el.innerHTML = ''; el.appendChild(input); input.focus();
         async function commit() {
-          const newVal = input.value.trim() === '' ? null : parseFloat(input.value);
+          let newVal = input.value.trim() === '' ? null : parseFloat(input.value);
+          if (field === 'weight_kg' && newVal != null) newVal = toKg(newVal);   // store kg
           try {
             await dbUpdate(id, { [field]: newVal });
             const idx = allRows.findIndex(r => r.id === id);
@@ -771,17 +824,20 @@
   }
 
   function renderTable() {
+    renderWeekStrip();
     const wrap = document.getElementById('tableWrap');
     const rows = allRows.filter(r => r.date === todayKey());
     if (!rows.length) { wrap.innerHTML = '<div class="empty">Say something like "4 sets of bench press, 80 kg, 10 reps"</div>'; return; }
     const tbody = rows.map(ex => {
       const m = ex.muscle || inferMuscle(ex.name);
+      const isPR = prNames.has(ex.name) && ex.weight_kg != null &&
+                   ex.weight_kg === Math.max(...rows.filter(r => r.name===ex.name).map(r => r.weight_kg || 0));
       return `<tr>
-        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span></td>
+        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${isPR?' <span class="pr-tag">🏆 PR</span>':''}</td>
         <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
         <td class="col-num" data-label="Sets">${editableCell(ex.sets,'sets','sets',ex.id)}</td>
         <td class="col-num" data-label="Reps">${editableCell(ex.reps,'reps','reps',ex.id)}</td>
-        <td class="col-num" data-label="Weight">${editableCell(ex.weight_kg,'kg','weight_kg',ex.id)}</td>
+        <td class="col-num" data-label="Weight">${editableCell(dispW(ex.weight_kg),units,'weight_kg',ex.id)}</td>
         <td class="delete-cell col-del"><button class="delete-btn" data-id="${ex.id}">✕</button></td>
       </tr>`;
     }).join('');
@@ -800,7 +856,7 @@
     box.innerHTML = sessionLog.slice().reverse().map(en => `
       <div class="log-row"><span class="log-time">${en.time}</span>
       <span class="log-text">"${en.transcript}" → ${en.exercises.map(e =>
-        `<b>${e.name}</b>${e.sets?' '+e.sets+'×':''}${e.reps?e.reps+' reps':''}${e.weight_kg?' '+e.weight_kg+'kg':''}`).join(', ')}</span></div>`).join('');
+        `<b>${e.name}</b>${e.sets?' '+e.sets+'×':''}${e.reps?e.reps+' reps':''}${e.weight_kg!=null?' '+dispW(e.weight_kg)+units:''}`).join(', ')}</span></div>`).join('');
   }
 
   function renderRecords() {
@@ -818,7 +874,7 @@
           <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
           <td class="col-num" data-label="Sets">${editableCell(ex.sets,'sets','sets',ex.id)}</td>
           <td class="col-num" data-label="Reps">${editableCell(ex.reps,'reps','reps',ex.id)}</td>
-          <td class="col-num" data-label="Weight">${editableCell(ex.weight_kg,'kg','weight_kg',ex.id)}</td>
+          <td class="col-num" data-label="Weight">${editableCell(dispW(ex.weight_kg),units,'weight_kg',ex.id)}</td>
           <td class="delete-cell col-del"><button class="delete-btn-rec" data-id="${ex.id}">✕</button></td>
         </tr>`;
       }).join('');
@@ -859,6 +915,7 @@
     const inp = document.getElementById('modalDate');
     inp.value = dk || todayKey(); inp.disabled = !!dk;
     document.getElementById('modalTitle').textContent = dk ? `Add exercise — ${formatDateLabel(dk).main}` : 'Add workout for a date';
+    document.getElementById('modalWeightLabel').textContent = `Weight (${units})`;
     ['modalName','modalSets','modalReps','modalWeight'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('modalOverlay').classList.remove('hidden');
     document.getElementById('modalName').focus();
@@ -871,7 +928,8 @@
     if (!name) { document.getElementById('modalName').focus(); return; }
     const dk = document.getElementById('modalDate').value || todayKey();
     const num = id => document.getElementById(id).value ? +document.getElementById(id).value : null;
-    const ex = { user_id: currentUser.id, date: dk, name, muscle: inferMuscle(name), sets: num('modalSets'), reps: num('modalReps'), weight_kg: num('modalWeight') };
+    const mw = num('modalWeight');
+    const ex = { user_id: currentUser.id, date: dk, name, muscle: inferMuscle(name), sets: num('modalSets'), reps: num('modalReps'), weight_kg: mw==null?null:toKg(mw) };
     const saveBtn = document.getElementById('modalSave');
     saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
     try {
@@ -965,12 +1023,68 @@
       exercises.forEach(ex => { if (!ex.muscle) ex.muscle = inferMuscle(ex.name); });
       setStatus('<span class="spinner"></span> Saving…', true);
       const rows = exercises.map(ex => ({ user_id: currentUser.id, date: todayKey(), name: ex.name, muscle: ex.muscle, sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg }));
+      // capture "last time" / PR before we add today's rows to the history
+      const insights = exercises.map(ex => {
+        const ps = priorStats(ex.name);
+        if (!ps) return { name: ex.name, text: 'first time logged 💪', pr: false };
+        const isPR = ex.weight_kg != null && ex.weight_kg > ps.allTimeMax;
+        const last = `last time ${dispW(ps.lastWeight)}${units}${ps.lastReps ? ' × ' + ps.lastReps : ''}`;
+        return { name: ex.name, pr: isPR,
+                 text: isPR ? `${last} → NEW PR ${dispW(ex.weight_kg)}${units}!` : last };
+      });
+
       await dbInsert(rows);
       allRows = await dbGetAll();
+
+      prNames = new Set(insights.filter(i => i.pr).map(i => i.name));
       sessionLog.push({ time: new Date().toLocaleTimeString(), transcript: text, exercises });
-      renderTable(); renderLog();
+      renderTable(); renderLog(); renderFeedback(insights);
+      if (prNames.size) { try { navigator.vibrate && navigator.vibrate([120,60,120,60,200]); } catch(e){} }
       setStatus(`✓ Saved ${exercises.length} exercise${exercises.length>1?'s':''}`, false);
     } catch (err) { setStatus(`⚠️ Error: ${err.message}`, false); }
+  }
+
+  // history lookup for "last time" + PR (excludes today)
+  function priorStats(name){
+    const t = todayKey();
+    const prior = allRows.filter(r => r.name === name && r.date < t && r.weight_kg != null);
+    if (!prior.length) return null;
+    const lastDate = prior.reduce((a,b) => a.date > b.date ? a : b).date;
+    const lastRows = prior.filter(r => r.date === lastDate);
+    const lb = lastRows.reduce((a,b) => a.weight_kg >= b.weight_kg ? a : b);
+    return { lastWeight: lb.weight_kg, lastReps: lb.reps, allTimeMax: Math.max(...prior.map(r => r.weight_kg)) };
+  }
+
+  function renderFeedback(items){
+    const el = document.getElementById('logFeedback');
+    if (!el) return;
+    if (!items || !items.length) { el.innerHTML = ''; return; }
+    el.innerHTML = items.map(it =>
+      `<div class="fb-row ${it.pr?'pr':''}">${it.pr?'🎉 ':'• '}<b>${it.name}</b> — ${it.text}</div>`).join('');
+  }
+
+  // ── Weekly streak strip ──
+  function renderWeekStrip(){
+    const el = document.getElementById('weekStrip');
+    if (!el) return;
+    const dates = new Set(allRows.map(r => r.date));
+    const days = [];
+    for (let i=6; i>=0; i--){
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const key = d.toISOString().slice(0,10);
+      days.push({ key, on: dates.has(key), label: d.toLocaleDateString('en-US',{weekday:'narrow'}) });
+    }
+    const weekCount = days.filter(d => d.on).length;
+    let streak = 0; const d = new Date();
+    if (!dates.has(d.toISOString().slice(0,10))) d.setDate(d.getDate()-1);
+    while (dates.has(d.toISOString().slice(0,10))) { streak++; d.setDate(d.getDate()-1); }
+    const dots = days.map(x => `<div class="day-dot ${x.on?'on':''}"><span class="dot"></span><span class="dl">${x.label}</span></div>`).join('');
+    el.innerHTML = `
+      <div class="week-dots">${dots}</div>
+      <div class="week-meta">
+        <span class="${weekCount>=weeklyGoal?'goal-hit':''}">🔥 ${weekCount}/${weeklyGoal} this week</span>
+        ${streak>1 ? `<span class="streak">${streak}-day streak</span>` : '<span></span>'}
+      </div>`;
   }
 
   function setStatus(html, active) { statusEl.innerHTML = html; statusEl.className = 'status' + (active ? ' active' : ''); }
@@ -1026,10 +1140,17 @@
     const labels = dates.map(fmtShortDate);
     const exNames = [...new Set(rows.map(r => r.name))];
 
+    const progConv = v => {
+      if (v == null) return null;
+      if (progMetric === 'reps') return v;
+      const c = units === 'lb' ? v / KG_PER_LB : v;
+      return progMetric === 'volume' ? Math.round(c) : Math.round(c*10)/10;
+    };
+
     const datasets = exNames.map((name, i) => {
       const data = dates.map(dk => {
         const dayRows = rows.filter(r => r.name===name && r.date===dk);
-        return dayRows.length ? metricForDate(dayRows, progMetric) : null;
+        return dayRows.length ? progConv(metricForDate(dayRows, progMetric)) : null;
       });
       const color = EX_COLORS[i % EX_COLORS.length];
       return { label:name, data, borderColor:color, backgroundColor:color,
@@ -1058,11 +1179,11 @@
       const v = dayRows.length ? metricForDate(dayRows, progMetric) : null;
       if (v!=null) vals.push({ dk, v });
     }));
-    const unit = progMetric==='weight' ? 'kg' : progMetric==='reps' ? 'reps' : 'vol';
+    const unit = progMetric==='weight' ? units : progMetric==='reps' ? 'reps' : (units==='lb'?'lb·vol':'vol');
     if (vals.length){
-      const best = Math.max(...vals.map(a=>a.v));
+      const best = progConv(Math.max(...vals.map(a=>a.v)));
       const last = dates[dates.length-1];
-      const latest = Math.max(...vals.filter(a=>a.dk===last).map(a=>a.v));
+      const latest = progConv(Math.max(...vals.filter(a=>a.dk===last).map(a=>a.v)));
       statsEl.innerHTML = `
         <div class="stat-card"><div class="stat-label">Best</div><div class="stat-val">${best}<small> ${unit}</small></div></div>
         <div class="stat-card"><div class="stat-label">Latest</div><div class="stat-val">${latest}<small> ${unit}</small></div></div>
@@ -1156,12 +1277,15 @@
 
   function renderProfile(){
     const meta = (currentUser && currentUser.user_metadata) || {};
-    if (meta.weight_kg && !profWeight.value) profWeight.value = meta.weight_kg;
+    document.getElementById('profWeightLabel').textContent = `Weight (${units})`;
+    document.querySelectorAll('#unitChips .chip').forEach(c => c.classList.toggle('active', c.dataset.unit === units));
+    if (meta.weight_kg && !profWeight.value) profWeight.value = dispW(meta.weight_kg);
     if (meta.height_cm && !profHeight.value) profHeight.value = meta.height_cm;
     if (meta.sex && !profSex.value)          profSex.value = meta.sex;
     if (meta.age && !profAge.value)          profAge.value = meta.age;
+    if (meta.weekly_goal && !document.getElementById('profGoal').value) document.getElementById('profGoal').value = meta.weekly_goal;
 
-    const w = parseFloat(profWeight.value), h = parseFloat(profHeight.value);
+    const w = toKg(parseFloat(profWeight.value)), h = parseFloat(profHeight.value);
     const sex = profSex.value, age = parseInt(profAge.value) || null;
     if (!w || !h){
       profCards.innerHTML = `<div class="prof-note">Enter your details above to see your BMI and strength rank.</div>`;
@@ -1180,7 +1304,7 @@
       } else {
         const r = RANK_META[s.overall];
         const lifts = s.perLift.map(l =>
-          `<div class="lift-row"><span>${l.lift} — ${l.weight}kg (${l.ratio.toFixed(2)}× BW)</span><span class="lift-rank">${RANK_META[l.level].name}</span></div>`).join('');
+          `<div class="lift-row"><span>${l.lift} — ${dispW(l.weight)}${units} (${l.ratio.toFixed(2)}× BW)</span><span class="lift-rank">${RANK_META[l.level].name}</span></div>`).join('');
         const sub = age ? `Adjusted for ${sex}, age ${age}` : `Adjusted for ${sex}`;
         rankHtml = `
           <div class="rank-top">
@@ -1205,7 +1329,7 @@
   }
 
   async function saveProfile(){
-    const w = parseFloat(profWeight.value), h = parseFloat(profHeight.value);
+    const w = toKg(parseFloat(profWeight.value)), h = parseFloat(profHeight.value);
     const sex = profSex.value, age = parseInt(profAge.value) || null;
     if (!w || !h){ profMsg.textContent='Enter at least weight and height.'; profMsg.className='prof-msg err'; return; }
     profMsg.textContent='Saving…'; profMsg.className='prof-msg';
@@ -1220,6 +1344,52 @@
     }
   }
   document.getElementById('profSave').addEventListener('click', saveProfile);
+
+  // Units toggle (kg/lb) — applies everywhere instantly + persists
+  document.querySelectorAll('#unitChips .chip').forEach(c => c.addEventListener('click', async () => {
+    const old = units;
+    if (c.dataset.unit === old) return;
+    const pw = parseFloat(profWeight.value);        // preserve any unsaved bodyweight entry
+    units = c.dataset.unit;
+    document.querySelectorAll('#unitChips .chip').forEach(x => x.classList.toggle('active', x === c));
+    document.getElementById('profWeightLabel').textContent = `Weight (${units})`;
+    if (!isNaN(pw)) {
+      const kg = old === 'lb' ? pw * KG_PER_LB : pw;
+      profWeight.value = units === 'lb' ? Math.round(kg / KG_PER_LB * 10) / 10 : Math.round(kg * 10) / 10;
+    }
+    renderTable(); renderRecords(); renderLog(); renderProfile();
+    if (document.getElementById('tab-progress').classList.contains('active')) renderProgress();
+    try { const { data } = await sb.auth.updateUser({ data: { units } }); if (data && data.user) currentUser = data.user; } catch (e) {}
+  }));
+
+  // Weekly goal save
+  document.getElementById('prefSave').addEventListener('click', async () => {
+    const g = parseInt(document.getElementById('profGoal').value) || 4;
+    weeklyGoal = g;
+    const prefMsg = document.getElementById('prefMsg');
+    prefMsg.textContent = 'Saving…'; prefMsg.className = 'prof-msg';
+    try {
+      const { data, error } = await sb.auth.updateUser({ data: { weekly_goal: g, units } });
+      if (error) throw error;
+      currentUser = data.user;
+      prefMsg.textContent = 'Saved ✓'; prefMsg.className = 'prof-msg ok';
+      renderWeekStrip();
+    } catch (e) { prefMsg.textContent = 'Could not save: ' + e.message; prefMsg.className = 'prof-msg err'; }
+  });
+
+  // CSV export
+  document.getElementById('exportCsv').addEventListener('click', () => {
+    const header = ['date','exercise','muscle','sets','reps','weight_kg'];
+    const lines = [header, ...allRows.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r =>
+      [r.date, r.name, r.muscle||'', r.sets??'', r.reps??'', r.weight_kg??''])];
+    const csv = lines.map(row => row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'set-workouts.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 
   // ── Install to home screen ────────────────────────────────────────────────
   const installBar  = document.getElementById('installBar');
