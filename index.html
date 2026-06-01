@@ -174,6 +174,7 @@
     .badge-legs{background:#1a3a1a;color:#6bff8e} .badge-shoulders{background:#2a2a1a;color:#ffe56b}
     .badge-arms{background:#2a1a3a;color:#c46bff} .badge-core{background:#3a2a1a;color:#ffaa6b}
     .badge-neck{background:#1a3a3a;color:#6bffee} .badge-other{background:#2a2a2a;color:#aaa}
+    .badge-cardio{background:#10243a;color:#5ec8ff}
 
     .ex-name { font-weight: 600; color: #eee; }
 
@@ -375,6 +376,7 @@
 
     /* ── PR tag + voice feedback ── */
     .pr-tag { font-size:0.62rem; font-weight:800; color:#ffd54a; background:#332a10; padding:2px 6px; border-radius:6px; white-space:nowrap; }
+    .kind-tag { font-size:0.58rem; font-weight:700; color:#9bd; background:#1a2a3a; padding:2px 5px; border-radius:5px; white-space:nowrap; }
     .feedback { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
     .feedback:empty { display:none; }
     .fb-row { font-size:0.85rem; color:#999; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:9px; padding:9px 12px; }
@@ -434,6 +436,14 @@
     .bw-chart-wrap { height:200px; position:relative; }
     .pm-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
     .pm-cell { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#222; border-radius:8px; padding:8px 10px; font-size:0.82rem; }
+
+    /* ── Routines ── */
+    .routine-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-top:1px solid #1e1e1e; }
+    .routine-row:first-child { border-top:none; }
+    .routine-info { display:flex; flex-direction:column; gap:2px; }
+    .routine-info b { color:#eee; font-size:0.92rem; }
+    .routine-info span { color:#666; font-size:0.76rem; }
+    .routine-actions { display:flex; gap:8px; }
   </style>
 </head>
 <body>
@@ -523,6 +533,13 @@
         <button class="btn-sm danger" id="clearTodayBtn">Clear today</button>
       </div>
       <div class="table-wrap" id="tableWrap"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Routines</span>
+        <button class="btn-sm" id="saveRoutineBtn">Save today as routine</button>
+      </div>
+      <div class="result-box" id="routinesWrap"><div class="empty">No routines yet</div></div>
     </div>
     <div class="section">
       <div class="section-header"><span class="section-title">Session log</span></div>
@@ -716,6 +733,20 @@
     const { error } = await sb.from('bodyweight_log').upsert({ user_id: currentUser.id, date, weight_kg: kg }, { onConflict: 'user_id,date' });
     if (error) throw error;
   }
+  // routines / templates
+  async function rtGetAll() {
+    const { data, error } = await sb.from('routines').select('*').order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  async function rtInsert(name, items) {
+    const { error } = await sb.from('routines').insert({ user_id: currentUser.id, name, items });
+    if (error) throw error;
+  }
+  async function rtDelete(id) {
+    const { error } = await sb.from('routines').delete().eq('id', id);
+    if (error) throw error;
+  }
 
   // ── Muscle inference fallback ─────────────────────────────────────────────
   const MUSCLE_MAP = {
@@ -894,6 +925,18 @@
     return `<span class="editable ${isEmpty?'empty':''}" data-field="${field}" data-id="${rowId}" title="Tap to edit">
       <span class="val">${isEmpty?'—':value}</span><span class="unit">${isEmpty?'':unit}</span></span>`;
   }
+  // the three numeric cells differ by exercise kind (strength/bodyweight vs cardio)
+  function numCells(ex){
+    if (ex.kind === 'cardio'){
+      return `<td class="col-num" data-label="Duration">${editableCell(ex.duration_min,'min','duration_min',ex.id)}</td>
+        <td class="col-num" data-label="Distance">${editableCell(ex.distance_km,'km','distance_km',ex.id)}</td>
+        <td class="col-num" data-label="">—</td>`;
+    }
+    return `<td class="col-num" data-label="Sets">${editableCell(ex.sets,'sets','sets',ex.id)}</td>
+      <td class="col-num" data-label="Reps">${editableCell(ex.reps,'reps','reps',ex.id)}</td>
+      <td class="col-num" data-label="Weight">${editableCell(dispW(ex.weight_kg),units,'weight_kg',ex.id)}</td>`;
+  }
+
   function attachEditables(container) {
     container.querySelectorAll('.editable').forEach(el => {
       el.addEventListener('click', () => {
@@ -935,11 +978,9 @@
       const isPR = prNames.has(ex.name) && ex.weight_kg != null &&
                    ex.weight_kg === Math.max(...rows.filter(r => r.name===ex.name).map(r => r.weight_kg || 0));
       return `<tr>
-        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${isPR?' <span class="pr-tag">🏆 PR</span>':''}</td>
+        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${isPR?' <span class="pr-tag">🏆 PR</span>':''}</td>
         <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
-        <td class="col-num" data-label="Sets">${editableCell(ex.sets,'sets','sets',ex.id)}</td>
-        <td class="col-num" data-label="Reps">${editableCell(ex.reps,'reps','reps',ex.id)}</td>
-        <td class="col-num" data-label="Weight">${editableCell(dispW(ex.weight_kg),units,'weight_kg',ex.id)}</td>
+        ${numCells(ex)}
         <td class="delete-cell col-del"><button class="delete-btn" data-id="${ex.id}">✕</button></td>
       </tr>`;
     }).join('');
@@ -958,7 +999,9 @@
     box.innerHTML = sessionLog.slice().reverse().map(en => `
       <div class="log-row"><span class="log-time">${en.time}</span>
       <span class="log-text">"${en.transcript}" → ${en.exercises.map(e =>
-        `<b>${e.name}</b>${e.sets?' '+e.sets+'×':''}${e.reps?e.reps+' reps':''}${e.weight_kg!=null?' '+dispW(e.weight_kg)+units:''}`).join(', ')}</span></div>`).join('');
+        e.kind==='cardio'
+          ? `<b>${e.name}</b>${e.duration_min?' '+e.duration_min+'min':''}${e.distance_km!=null?' '+e.distance_km+'km':''}`
+          : `<b>${e.name}</b>${e.sets?' '+e.sets+'×':''}${e.reps?e.reps+' reps':''}${e.weight_kg!=null?' '+dispW(e.weight_kg)+units:''}`).join(', ')}</span></div>`).join('');
   }
 
   function renderRecords() {
@@ -972,11 +1015,9 @@
       const rows = exs.map(ex => {
         const m = ex.muscle || inferMuscle(ex.name);
         return `<tr>
-          <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span></td>
+          <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}</td>
           <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
-          <td class="col-num" data-label="Sets">${editableCell(ex.sets,'sets','sets',ex.id)}</td>
-          <td class="col-num" data-label="Reps">${editableCell(ex.reps,'reps','reps',ex.id)}</td>
-          <td class="col-num" data-label="Weight">${editableCell(dispW(ex.weight_kg),units,'weight_kg',ex.id)}</td>
+          ${numCells(ex)}
           <td class="delete-cell col-del"><button class="delete-btn-rec" data-id="${ex.id}">✕</button></td>
         </tr>`;
       }).join('');
@@ -1004,7 +1045,8 @@
   async function loadAll() {
     try { allRows = await dbGetAll(); }
     catch(e) { console.error(e); setStatus('⚠️ Could not load your data', false); }
-    renderTable(); renderRecords();
+    try { routines = await rtGetAll(); } catch(e) { routines = []; }   // empty until the Wave-3 SQL is run
+    renderTable(); renderRecords(); renderRoutines();
   }
 
   document.getElementById('clearTodayBtn').addEventListener('click', async () => {
@@ -1140,7 +1182,7 @@
         const last = `last time ${dispW(ps.lastWeight)}${units}${ps.lastReps ? ' × ' + ps.lastReps : ''}`;
         return { name: ex.name, pr: isPR, text: isPR ? `${last} → NEW PR ${dispW(ex.weight_kg)}${units}!` : last };
       });
-      const rows = exercises.map(ex => ({ user_id: currentUser.id, date: todayKey(), name: ex.name, muscle: ex.muscle || inferMuscle(ex.name), sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg }));
+      const rows = exercises.map(ex => ({ user_id: currentUser.id, date: todayKey(), name: ex.name, muscle: ex.muscle || inferMuscle(ex.name), kind: ex.kind || 'strength', sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg, duration_min: ex.duration_min ?? null, distance_km: ex.distance_km ?? null }));
       await dbInsert(rows);
       allRows = await dbGetAll();
       prNames = new Set(insights.filter(i => i.pr).map(i => i.name));
@@ -1351,7 +1393,7 @@
   }
 
   // ── Muscle balance doughnut + training heatmap ──
-  const MUSCLE_COLORS = { chest:'#ff6b6b', back:'#6bb5ff', legs:'#6bff8e', shoulders:'#ffe56b', arms:'#c46bff', core:'#ffaa6b', neck:'#6bffee', other:'#9e9e9e' };
+  const MUSCLE_COLORS = { chest:'#ff6b6b', back:'#6bb5ff', legs:'#6bff8e', shoulders:'#ffe56b', arms:'#c46bff', core:'#ffaa6b', neck:'#6bffee', cardio:'#5ec8ff', other:'#9e9e9e' };
   let balanceChart = null;
   const nDaysAgoKey = n => { const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); };
 
@@ -1594,9 +1636,9 @@
 
   // CSV export
   document.getElementById('exportCsv').addEventListener('click', () => {
-    const header = ['date','exercise','muscle','sets','reps','weight_kg'];
+    const header = ['date','exercise','kind','muscle','sets','reps','weight_kg','duration_min','distance_km'];
     const lines = [header, ...allRows.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r =>
-      [r.date, r.name, r.muscle||'', r.sets??'', r.reps??'', r.weight_kg??''])];
+      [r.date, r.name, r.kind||'strength', r.muscle||'', r.sets??'', r.reps??'', r.weight_kg??'', r.duration_min??'', r.distance_km??''])];
     const csv = lines.map(row => row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -1613,7 +1655,9 @@
     allRows.forEach(r => { (byDate[r.date] ||= []).push(r); });
     const dks = Object.keys(byDate).sort((a,b) => b.localeCompare(a)).slice(0, 21);
     const lines = dks.map(dk => {
-      const items = byDate[dk].map(r => `${r.name} ${r.sets??'?'}x${r.reps??'?'}${r.weight_kg!=null?' @'+r.weight_kg+'kg':''}`).join('; ');
+      const items = byDate[dk].map(r => r.kind==='cardio'
+        ? `${r.name} ${r.duration_min??'?'}min${r.distance_km!=null?' '+r.distance_km+'km':''}`
+        : `${r.name} ${r.sets??'?'}x${r.reps??'?'}${r.weight_kg!=null?' @'+r.weight_kg+'kg':''}`).join('; ');
       return `${dk}: ${items}`;
     });
     return `Units: kg. Today is ${todayKey()}. Recent sessions (newest first):\n${lines.join('\n')}`;
@@ -1719,6 +1763,46 @@
     } catch(e){ document.getElementById('bwNote').textContent = '⚠️ ' + e.message; }
     btn.disabled = false; btn.textContent = 'Log';
   });
+
+  // ── Routines / templates ──
+  let routines = [];
+  function renderRoutines(){
+    const wrap = document.getElementById('routinesWrap');
+    if (!wrap) return;
+    if (!routines.length){ wrap.innerHTML = '<div class="empty">No routines yet — save a workout to reuse it.</div>'; return; }
+    wrap.innerHTML = routines.map(rt => `
+      <div class="routine-row">
+        <div class="routine-info"><b>${(rt.name||'').replace(/</g,'&lt;')}</b><span>${(rt.items||[]).length} exercise${(rt.items||[]).length!==1?'s':''}</span></div>
+        <div class="routine-actions">
+          <button class="btn-sm" data-log="${rt.id}">Log</button>
+          <button class="btn-sm danger" data-del="${rt.id}">✕</button>
+        </div>
+      </div>`).join('');
+    wrap.querySelectorAll('[data-log]').forEach(b => b.addEventListener('click', () => logRoutine(b.dataset.log)));
+    wrap.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delRoutine(b.dataset.del)));
+  }
+  async function saveTodayAsRoutine(){
+    const todays = allRows.filter(r => r.date === todayKey());
+    if (!todays.length){ alert('Log some exercises today first, then save them as a routine.'); return; }
+    const name = prompt('Name this routine (e.g. Push Day):');
+    if (!name || !name.trim()) return;
+    const items = todays.map(r => ({ name:r.name, muscle:r.muscle, kind:r.kind||'strength', sets:r.sets, reps:r.reps, weight_kg:r.weight_kg, duration_min:r.duration_min??null, distance_km:r.distance_km??null }));
+    try { await rtInsert(name.trim(), items); routines = await rtGetAll(); renderRoutines(); }
+    catch(e){ alert('Could not save routine: ' + e.message); }
+  }
+  async function logRoutine(id){
+    const rt = routines.find(r => r.id === id); if (!rt) return;
+    const rows = (rt.items||[]).map(it => ({ user_id:currentUser.id, date:todayKey(), name:it.name, muscle:it.muscle||inferMuscle(it.name), kind:it.kind||'strength', sets:it.sets, reps:it.reps, weight_kg:it.weight_kg, duration_min:it.duration_min??null, distance_km:it.distance_km??null }));
+    if (!rows.length) return;
+    try { await dbInsert(rows); allRows = await dbGetAll(); renderTable(); renderRecords(); setStatus(`✓ Logged routine "${rt.name}"`, false); }
+    catch(e){ alert('Could not log routine: ' + e.message); }
+  }
+  async function delRoutine(id){
+    if (!confirm('Delete this routine?')) return;
+    try { await rtDelete(id); routines = routines.filter(r => r.id !== id); renderRoutines(); }
+    catch(e){ console.error(e); }
+  }
+  document.getElementById('saveRoutineBtn').addEventListener('click', saveTodayAsRoutine);
 
   // ── Install to home screen ────────────────────────────────────────────────
   const installBar  = document.getElementById('installBar');

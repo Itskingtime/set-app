@@ -13,20 +13,24 @@ module.exports = async (req, res) => {
     const key = process.env.OPENROUTER_API_KEY;
     if (!key) { res.status(500).json({ error: 'OPENROUTER_API_KEY not set on the server' }); return; }
 
-    const prompt = `You are a gym workout parser and exercise expert.
+    const prompt = `You are a fitness workout parser and exercise expert.
 
 The user said: "${transcript}"
 
-Extract every exercise. For each, identify the PRIMARY muscle group.
-Return ONLY raw JSON, no markdown:
-{"exercises":[{"name":"Exercise Name","sets":3,"reps":10,"weight_kg":80,"muscle":"chest"}]}
+Extract every exercise. Return ONLY raw JSON, no markdown:
+{"exercises":[{"name":"Exercise Name","kind":"strength","muscle":"chest","sets":3,"reps":10,"weight_kg":80,"duration_min":null,"distance_km":null}]}
 
-Muscle must be exactly one of: chest, back, legs, shoulders, arms, core, neck, other.
+Fields:
+- kind: "strength" (uses external weight), "bodyweight" (push-ups, pull-ups, planks, dips — no added weight), or "cardio" (running, cycling, rowing, swimming, walking, elliptical, etc.)
+- muscle: exactly one of chest, back, legs, shoulders, arms, core, neck, cardio, other. Use "cardio" for cardio.
+- sets, reps: integers, or null if not mentioned.
+- weight_kg: number, or null (always null for bodyweight and cardio). Convert lbs to kg (divide by 2.205, round 1 decimal).
+- duration_min: minutes for cardio or timed work (e.g. plank 60s = 1), else null.
+- distance_km: kilometers for cardio with a distance, else null. Convert miles (×1.609).
+
 Rules:
 - Normalize names (bench -> Bench Press, ohp -> Overhead Press, rdl -> Romanian Deadlift).
-- Use null for sets/reps/weight_kg if not mentioned.
-- Convert lbs to kg (divide by 2.205, round to 1 decimal).
-- Empty array if nothing gym-related.`;
+- Empty array if nothing fitness-related.`;
 
     const or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
