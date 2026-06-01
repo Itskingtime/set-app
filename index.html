@@ -402,6 +402,30 @@
     .ask-row input { flex:1; min-width:0; background:#111; border:1px solid #2a2a2a; color:#f0f0f0; border-radius:8px; padding:10px 12px; font-size:16px; outline:none; }
     .ask-row input:focus { border-color:#555; }
     .data-btns { display:flex; flex-wrap:wrap; gap:10px; }
+
+    /* ── Transcription review ── */
+    .review-card { background:#16140e; border:1px solid #5a4a1a; border-radius:12px; padding:16px; margin-top:12px; }
+    .rev-list { display:flex; flex-direction:column; gap:10px; margin:10px 0 14px; }
+    .rev-item { display:flex; flex-direction:column; gap:6px; }
+    .rev-item input { background:#111; border:1px solid #2a2a2a; color:#f0f0f0; border-radius:8px; padding:9px 10px; font-size:16px; outline:none; }
+    .rev-item input:focus { border-color:#777; }
+    .rev-name { font-weight:600; }
+    .rev-nums { display:flex; gap:6px; align-items:stretch; }
+    .rev-nums .rev-f { width:100%; text-align:center; padding-left:4px; padding-right:4px; -moz-appearance:textfield; }
+    .rev-nums .rev-f::-webkit-inner-spin-button, .rev-nums .rev-f::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+    .rev-del { flex:0 0 auto; background:none; border:1px solid #2a2a2a; color:#888; border-radius:8px; padding:0 14px; cursor:pointer; font-size:0.9rem; }
+    .rev-del:hover { color:#ff6b6b; border-color:#ff4545; }
+    .review-actions { display:flex; gap:10px; }
+    .review-actions button { flex:1; padding:11px; border:none; border-radius:9px; font-weight:700; cursor:pointer; }
+
+    /* ── Progress extras: balance + heatmap ── */
+    .prog-extra { display:flex; flex-direction:column; gap:16px; margin-top:16px; }
+    .balance-card, .heat-card { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:16px; }
+    .balance-wrap { height:240px; position:relative; }
+    .balance-note { font-size:0.8rem; color:#888; margin-top:10px; text-align:center; }
+    .heatmap { display:grid; grid-template-rows:repeat(7,1fr); grid-auto-flow:column; gap:4px; }
+    .heat-cell { width:100%; aspect-ratio:1; border-radius:3px; background:#1e1e1e; }
+    .heat-cell.t1 { background:#3a1a1a; } .heat-cell.t2 { background:#a13030; } .heat-cell.t3 { background:#ff4545; }
   </style>
 </head>
 <body>
@@ -481,6 +505,7 @@
     <div class="section">
       <div class="section-header"><span class="section-title">You said</span></div>
       <div class="transcript-box" id="transcriptBox">Your words will appear here as you speak...</div>
+      <div class="review-card" id="reviewCard" style="display:none"></div>
       <div class="feedback" id="logFeedback"></div>
     </div>
     <div class="section">
@@ -519,11 +544,25 @@
     <div class="chip-row" id="muscleChips"></div>
     <div class="chip-row" id="metricToggle">
       <button class="chip metric-chip active" data-metric="weight">Weight</button>
+      <button class="chip metric-chip" data-metric="orm">Est 1RM</button>
       <button class="chip metric-chip" data-metric="reps">Reps</button>
       <button class="chip metric-chip" data-metric="volume">Volume</button>
     </div>
     <div class="chart-box"><canvas id="progChart"></canvas></div>
     <div id="progStats" class="prog-stats"></div>
+
+    <div id="progExtra" class="prog-extra">
+      <div class="balance-card">
+        <div class="card-title">Muscle balance · last 30 days</div>
+        <div class="balance-wrap"><canvas id="balanceChart"></canvas></div>
+        <div id="balanceNote" class="balance-note"></div>
+      </div>
+      <div class="heat-card">
+        <div class="card-title">Training calendar · 12 weeks</div>
+        <div id="heatmap" class="heatmap"></div>
+      </div>
+    </div>
+
     <div id="progEmpty" class="prog-empty">No data yet — log some sets with weight or reps, then come back to see your progress charted over time.</div>
   </div>
 
@@ -567,7 +606,12 @@
       </div>
       <label class="fld-label" style="margin-top:6px">Weekly session goal</label>
       <input type="number" id="profGoal" inputmode="numeric" min="1" max="14" placeholder="4" />
-      <button class="auth-btn" id="prefSave" style="margin-top:16px">Save preferences</button>
+      <label class="fld-label" style="margin-top:14px">Confirm voice logs before saving</label>
+      <div class="chip-row" id="confirmChips">
+        <button class="chip" data-confirm="on">On</button>
+        <button class="chip" data-confirm="off">Off</button>
+      </div>
+      <button class="auth-btn" id="prefSave" style="margin-top:8px">Save preferences</button>
       <div class="prof-msg" id="prefMsg"></div>
     </div>
 
@@ -773,6 +817,7 @@
     const m0 = currentUser.user_metadata || {};
     units = m0.units || 'kg';
     weeklyGoal = m0.weekly_goal || 4;
+    confirmSave = m0.confirm_save !== false;
     await loadAll();
     // first-time users: nudge them to enter weight/height
     if (!(currentUser.user_metadata && currentUser.user_metadata.weight_kg)) {
@@ -802,6 +847,7 @@
   const toKg  = v  => v==null ? null : (units==='lb' ? Math.round(v*KG_PER_LB*100)/100 : v);
   let prNames = new Set();   // exercise names that set a PR this session
   let weeklyGoal = 4;
+  let confirmSave = true;    // review parsed sets before saving
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1049,27 +1095,73 @@
       const exercises = data.exercises ?? [];
       if (!exercises.length) { setStatus('No exercises detected — try again', false); return; }
       exercises.forEach(ex => { if (!ex.muscle) ex.muscle = inferMuscle(ex.name); });
-      setStatus('<span class="spinner"></span> Saving…', true);
-      const rows = exercises.map(ex => ({ user_id: currentUser.id, date: todayKey(), name: ex.name, muscle: ex.muscle, sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg }));
-      // capture "last time" / PR before we add today's rows to the history
+
+      if (confirmSave) { setStatus('Review your sets below ↓', false); showReview(exercises, text); return; }
+      await commitExercises(exercises, text);
+    } catch (err) { setStatus(`⚠️ Error: ${err.message}`, false); }
+  }
+
+  // Save parsed (and possibly reviewed) exercises, computing PRs + "last time"
+  async function commitExercises(exercises, text) {
+    setStatus('<span class="spinner"></span> Saving…', true);
+    try {
       const insights = exercises.map(ex => {
         const ps = priorStats(ex.name);
         if (!ps) return { name: ex.name, text: 'first time logged 💪', pr: false };
         const isPR = ex.weight_kg != null && ex.weight_kg > ps.allTimeMax;
         const last = `last time ${dispW(ps.lastWeight)}${units}${ps.lastReps ? ' × ' + ps.lastReps : ''}`;
-        return { name: ex.name, pr: isPR,
-                 text: isPR ? `${last} → NEW PR ${dispW(ex.weight_kg)}${units}!` : last };
+        return { name: ex.name, pr: isPR, text: isPR ? `${last} → NEW PR ${dispW(ex.weight_kg)}${units}!` : last };
       });
-
+      const rows = exercises.map(ex => ({ user_id: currentUser.id, date: todayKey(), name: ex.name, muscle: ex.muscle || inferMuscle(ex.name), sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg }));
       await dbInsert(rows);
       allRows = await dbGetAll();
-
       prNames = new Set(insights.filter(i => i.pr).map(i => i.name));
       sessionLog.push({ time: new Date().toLocaleTimeString(), transcript: text, exercises });
       renderTable(); renderLog(); renderFeedback(insights);
       if (prNames.size) { try { navigator.vibrate && navigator.vibrate([120,60,120,60,200]); } catch(e){} }
       setStatus(`✓ Saved ${exercises.length} exercise${exercises.length>1?'s':''}`, false);
     } catch (err) { setStatus(`⚠️ Error: ${err.message}`, false); }
+  }
+
+  // ── Transcription review (confirm/edit before saving) ──
+  let pendingText = '';
+  function showReview(exercises, text){
+    pendingText = text;
+    const el = document.getElementById('reviewCard');
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div class="card-title">Review &amp; save</div>
+      <div class="rev-list">
+        ${exercises.map(ex => `
+          <div class="rev-item">
+            <input class="rev-name" value="${(ex.name||'').replace(/"/g,'&quot;')}" placeholder="Exercise">
+            <div class="rev-nums">
+              <input class="rev-f" data-f="sets" type="number" inputmode="numeric" placeholder="sets" value="${ex.sets??''}">
+              <input class="rev-f" data-f="reps" type="number" inputmode="numeric" placeholder="reps" value="${ex.reps??''}">
+              <input class="rev-f" data-f="wt" type="number" inputmode="decimal" placeholder="${units}" value="${dispW(ex.weight_kg)??''}">
+              <button class="rev-del" title="Remove">✕</button>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="review-actions">
+        <button class="btn-cancel" id="revDiscard">Discard</button>
+        <button class="btn-primary" id="revSave">Save</button>
+      </div>`;
+    el.querySelectorAll('.rev-del').forEach(b => b.addEventListener('click', () => b.closest('.rev-item').remove()));
+    document.getElementById('revDiscard').addEventListener('click', () => { el.style.display='none'; el.innerHTML=''; setStatus('Discarded — nothing saved', false); });
+    document.getElementById('revSave').addEventListener('click', saveReview);
+  }
+  async function saveReview(){
+    const el = document.getElementById('reviewCard');
+    const items = [...el.querySelectorAll('.rev-item')].map(it => {
+      const name = it.querySelector('.rev-name').value.trim();
+      const get = f => { const v = it.querySelector(`.rev-f[data-f="${f}"]`).value; return v==='' ? null : parseFloat(v); };
+      const wt = get('wt');
+      return { name, muscle: inferMuscle(name), sets: get('sets'), reps: get('reps'), weight_kg: wt==null ? null : toKg(wt) };
+    }).filter(x => x.name);
+    el.style.display = 'none'; el.innerHTML = '';
+    if (!items.length) { setStatus('Nothing to save', false); return; }
+    await commitExercises(items, pendingText);
   }
 
   // history lookup for "last time" + PR (excludes today)
@@ -1136,6 +1228,10 @@
       rows.forEach(r => { if (r.weight_kg!=null && r.reps!=null){ v += (r.sets||1)*r.reps*r.weight_kg; any=true; } });
       return any ? Math.round(v) : null;
     }
+    if (metric === 'orm'){   // estimated 1-rep-max (Epley)
+      const vals = rows.filter(r => r.weight_kg!=null && r.reps!=null).map(r => r.weight_kg*(1+r.reps/30));
+      return vals.length ? Math.round(Math.max(...vals)*10)/10 : null;
+    }
     const key = metric === 'weight' ? 'weight_kg' : 'reps';
     const vals = rows.map(r => r[key]).filter(v => v!=null);
     return vals.length ? Math.max(...vals) : null;
@@ -1152,10 +1248,12 @@
     if (!present.length){
       chipsEl.innerHTML=''; statsEl.innerHTML='';
       chartBox.style.display='none'; toggle.style.display='none'; emptyEl.style.display='block';
+      document.getElementById('progExtra').style.display='none';
       if (progChart){ progChart.destroy(); progChart=null; }
       return;
     }
     emptyEl.style.display='none'; chartBox.style.display=''; toggle.style.display='';
+    document.getElementById('progExtra').style.display='';
     if (!present.includes(progMuscle)) progMuscle = present[0];
 
     chipsEl.innerHTML = present.map(mg =>
@@ -1207,7 +1305,7 @@
       const v = dayRows.length ? metricForDate(dayRows, progMetric) : null;
       if (v!=null) vals.push({ dk, v });
     }));
-    const unit = progMetric==='weight' ? units : progMetric==='reps' ? 'reps' : (units==='lb'?'lb·vol':'vol');
+    const unit = (progMetric==='weight'||progMetric==='orm') ? units : progMetric==='reps' ? 'reps' : (units==='lb'?'lb·vol':'vol');
     if (vals.length){
       const best = progConv(Math.max(...vals.map(a=>a.v)));
       const last = dates[dates.length-1];
@@ -1219,6 +1317,52 @@
     } else {
       statsEl.innerHTML = `<div class="stat-card"><div class="stat-label">No ${progMetric} logged</div><div class="stat-val">—</div></div>`;
     }
+
+    renderBalance();
+    renderHeatmap();
+  }
+
+  // ── Muscle balance doughnut + training heatmap ──
+  const MUSCLE_COLORS = { chest:'#ff6b6b', back:'#6bb5ff', legs:'#6bff8e', shoulders:'#ffe56b', arms:'#c46bff', core:'#ffaa6b', neck:'#6bffee', other:'#9e9e9e' };
+  let balanceChart = null;
+  const nDaysAgoKey = n => { const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); };
+
+  function renderBalance(){
+    const cutoff = nDaysAgoKey(30);
+    const vol = {};
+    allRows.forEach(r => {
+      if (r.date >= cutoff && r.weight_kg!=null && r.reps!=null){
+        const m = r.muscle || inferMuscle(r.name);
+        vol[m] = (vol[m]||0) + (r.sets||1)*r.reps*r.weight_kg;
+      }
+    });
+    const note = document.getElementById('balanceNote');
+    if (balanceChart){ balanceChart.destroy(); balanceChart = null; }
+    const labels = Object.keys(vol);
+    if (!labels.length){ note.textContent = 'Log sets with weight & reps to see your muscle balance.'; return; }
+    balanceChart = new Chart(document.getElementById('balanceChart'), {
+      type:'doughnut',
+      data:{ labels, datasets:[{ data: labels.map(l=>Math.round(vol[l])), backgroundColor: labels.map(l=>MUSCLE_COLORS[l]||'#9e9e9e'), borderColor:'#1a1a1a', borderWidth:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#aaa', boxWidth:12, font:{size:11} } } } }
+    });
+    const missing = ['chest','back','legs','shoulders','arms','core'].filter(m => !vol[m]);
+    note.textContent = missing.length ? `Neglected: ${missing.join(', ')} — consider adding these.` : 'Nice balance across muscle groups 💪';
+  }
+
+  function renderHeatmap(){
+    const el = document.getElementById('heatmap');
+    const count = {};
+    allRows.forEach(r => { count[r.date] = (count[r.date]||0) + 1; });
+    const today = new Date();
+    const tier = c => c===0 ? 0 : c<=2 ? 1 : c<=4 ? 2 : 3;
+    let html = '';
+    for (let i=83; i>=0; i--){
+      const d = new Date(today); d.setDate(d.getDate()-i);
+      const key = d.toISOString().slice(0,10);
+      const c = count[key] || 0;
+      html += `<div class="heat-cell t${tier(c)}" title="${key}: ${c} exercise${c!==1?'s':''}"></div>`;
+    }
+    el.innerHTML = html;
   }
 
   document.querySelectorAll('.metric-chip').forEach(b => b.addEventListener('click', () => {
@@ -1307,6 +1451,7 @@
     const meta = (currentUser && currentUser.user_metadata) || {};
     document.getElementById('profWeightLabel').textContent = `Weight (${units})`;
     document.querySelectorAll('#unitChips .chip').forEach(c => c.classList.toggle('active', c.dataset.unit === units));
+    document.querySelectorAll('#confirmChips .chip').forEach(c => c.classList.toggle('active', c.dataset.confirm === (confirmSave?'on':'off')));
     if (meta.weight_kg && !profWeight.value) profWeight.value = dispW(meta.weight_kg);
     if (meta.height_cm && !profHeight.value) profHeight.value = meta.height_cm;
     if (meta.sex && !profSex.value)          profSex.value = meta.sex;
@@ -1404,6 +1549,13 @@
       renderWeekStrip();
     } catch (e) { prefMsg.textContent = 'Could not save: ' + e.message; prefMsg.className = 'prof-msg err'; }
   });
+
+  // Confirm-before-saving toggle
+  document.querySelectorAll('#confirmChips .chip').forEach(c => c.addEventListener('click', async () => {
+    confirmSave = c.dataset.confirm === 'on';
+    document.querySelectorAll('#confirmChips .chip').forEach(x => x.classList.toggle('active', x === c));
+    try { const { data } = await sb.auth.updateUser({ data: { confirm_save: confirmSave } }); if (data && data.user) currentUser = data.user; } catch(e){}
+  }));
 
   // CSV export
   document.getElementById('exportCsv').addEventListener('click', () => {
