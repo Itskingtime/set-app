@@ -19,7 +19,7 @@ Give a SHORT weekly insight (2-4 sentences, plain text, no markdown, no headers)
 
     const or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'https://sayset.vercel.app', 'X-Title': 'Set' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'https://sayset.fit', 'X-Title': 'SaySet' },
       body: JSON.stringify({ model: 'deepseek/deepseek-v4-pro', messages: [{ role: 'user', content: prompt }], temperature: 0.5, max_tokens: 220 }),
     });
     const data = await or.json();

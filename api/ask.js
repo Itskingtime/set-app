@@ -23,7 +23,7 @@ Answer in 1-3 short sentences, plain text. Include specific numbers (weights, re
 
     const or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'https://sayset.vercel.app', 'X-Title': 'Set' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'https://sayset.fit', 'X-Title': 'SaySet' },
       body: JSON.stringify({ model: 'deepseek/deepseek-v4-pro', messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 200 }),
     });
     const data = await or.json();

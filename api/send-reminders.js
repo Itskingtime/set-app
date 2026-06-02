@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
         await webpush.sendNotification(s.subscription, JSON.stringify({
           title: 'Time to train 💪',
           body: "You haven't logged a workout in a few days — tap to log one.",
-          url: 'https://sayset.vercel.app',
+          url: 'https://sayset.fit',
         }));
         sent++;
       } catch (err) {

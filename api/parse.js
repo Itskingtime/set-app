@@ -37,8 +37,8 @@ Rules:
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
-        'HTTP-Referer': 'https://set-app.vercel.app',
-        'X-Title': 'Set',
+        'HTTP-Referer': 'https://sayset.fit',
+        'X-Title': 'SaySet',
       },
       body: JSON.stringify({
         model: 'deepseek/deepseek-v4-pro',
