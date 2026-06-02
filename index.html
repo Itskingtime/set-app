@@ -6,7 +6,7 @@
   <title>SaySet — Voice Workout Logger</title>
 
   <!-- PWA / mobile -->
-  <meta name="theme-color" content="#e7ecf5" />
+  <meta name="theme-color" content="#120d0a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -446,24 +446,24 @@
     .routine-actions { display:flex; gap:8px; }
 
     /* ══════════════════════════════════════════════════════════════════
-       SaySet — glassmorphic light theme (this layer overrides the above)
+       SaySet — dark amber glass theme (this layer overrides the above)
        ══════════════════════════════════════════════════════════════════ */
     :root {
-      --ink:#262d40; --text:#5a6276; --muted:#8b93a8; --faint:#aab2c4;
-      --line:rgba(110,125,160,0.18);
-      --glass:rgba(255,255,255,0.46); --glass2:rgba(255,255,255,0.64); --brd:rgba(255,255,255,0.66);
-      --field:rgba(255,255,255,0.55);
-      --accent:#6d7bf7;
-      --gradb:linear-gradient(135deg,#7b8cff 0%,#b07bf7 100%);
-      --grad:linear-gradient(135deg,#ff9ec4 0%,#b69bff 52%,#7db8ff 100%);
-      --shadow:0 10px 34px rgba(90,110,170,0.16); --shadow-sm:0 4px 16px rgba(90,110,170,0.12);
+      --ink:#f6f1e9; --text:#b9b1a4; --muted:#8c8578; --faint:#5f594f;
+      --line:rgba(255,255,255,0.10);
+      --glass:rgba(255,255,255,0.055); --glass2:rgba(255,255,255,0.10); --brd:rgba(255,255,255,0.12);
+      --field:rgba(255,255,255,0.05);
+      --accent:#ffb020;
+      --gradb:linear-gradient(135deg,#ffd24d 0%,#ff9d1c 100%);
+      --grad:linear-gradient(135deg,#ffb648 0%,#ff7a2e 100%);
+      --shadow:0 16px 44px rgba(0,0,0,0.46); --shadow-sm:0 6px 20px rgba(0,0,0,0.4);
       --r:22px;
     }
     body {
       background:
-        radial-gradient(60% 50% at 82% 8%, rgba(255,193,219,0.55), transparent 60%),
-        radial-gradient(52% 46% at 8% 92%, rgba(170,196,255,0.5), transparent 60%),
-        linear-gradient(150deg,#d4e8df 0%,#edf0e8 34%,#ece6f4 66%,#dde8f7 100%);
+        radial-gradient(68% 52% at 78% 12%, rgba(255,150,40,0.22), transparent 62%),
+        radial-gradient(48% 42% at 4% 94%, rgba(255,110,40,0.10), transparent 60%),
+        linear-gradient(160deg,#15100b 0%,#0e0b09 52%,#120d0a 100%);
       background-attachment: fixed; color: var(--text);
     }
     h1 { color: var(--ink); } .subtitle { color: var(--muted); }
@@ -472,10 +472,10 @@
     .bmi-card, .rank-card, .about-card, .coach-card, .ask-card, .balance-card,
     .heat-card, .week-strip, .modal, .api-banner, .install-bar {
       background: var(--glass);
-      -webkit-backdrop-filter: blur(22px) saturate(150%); backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(24px) saturate(130%); backdrop-filter: blur(24px) saturate(130%);
       border: 1px solid var(--brd); border-radius: var(--r); box-shadow: var(--shadow);
     }
-    .api-banner { color: var(--muted); } .api-dot { background:#34d399; }
+    .api-banner { color: var(--muted); } .api-dot { background:#7ee29a; }
 
     .section-title, .card-title, .fld-label, .auth-card label, .modal label,
     .stat-label, .date-label-sub, .auth-sub, .rank-sub, .bmi-cat, .mic-label,
@@ -493,93 +493,93 @@
     }
     .auth-card input:focus, .modal input:focus, .profile-card input:focus, .profile-card select:focus,
     .ask-row input:focus, .bw-log-row input:focus, .rev-item input:focus { border-color: var(--accent); }
-    .edit-input { background:#fff; border:1px solid var(--accent); color: var(--ink); }
+    .edit-input { background: rgba(255,255,255,0.12); border:1px solid var(--accent); color: var(--ink); }
 
-    .auth-btn, .btn-primary { background: var(--gradb); color:#fff; box-shadow: var(--shadow-sm); }
+    .auth-btn, .btn-primary { background: var(--gradb); color:#2e2000; box-shadow: var(--shadow-sm); }
     .auth-btn:hover, .btn-primary:hover { filter: brightness(1.06); background: var(--gradb); }
-    .btn-cancel { background: rgba(120,130,160,0.12); color: var(--text); }
-    .btn-cancel:hover { background: rgba(120,130,160,0.2); color: var(--ink); }
+    .btn-cancel { background: rgba(255,255,255,0.08); color: var(--text); }
+    .btn-cancel:hover { background: rgba(255,255,255,0.14); color: var(--ink); }
     .auth-btn, .btn-primary, .btn-cancel, .review-actions button, .modal-actions button { border-radius:14px; }
 
     .btn-sm, .chip {
       background: var(--glass2); border:1px solid var(--brd); color: var(--text);
       -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
     }
-    .btn-sm:hover { background:#fff; color: var(--ink); border-color: var(--brd); }
-    .chip.active { background: var(--gradb); color:#fff; border-color: transparent; }
-    .btn-sm.danger { color:#e5484d; }
-    .btn-sm.danger:hover { background:#ffe9ea; color:#d11a1f; border-color:#ffc9cc; }
+    .btn-sm:hover { background: rgba(255,255,255,0.16); color: var(--ink); border-color: var(--brd); }
+    .chip.active { background: var(--gradb); color:#2e2000; border-color: transparent; }
+    .btn-sm.danger { color:#ff7a6e; }
+    .btn-sm.danger:hover { background: rgba(255,90,70,0.16); color:#ff9181; border-color: rgba(255,90,70,0.4); }
 
-    .tabs { background: var(--glass); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border:1px solid var(--brd); box-shadow: var(--shadow-sm); }
+    .tabs { background: var(--glass); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); border:1px solid var(--brd); box-shadow: var(--shadow-sm); }
     .tab-btn { color: var(--muted); }
-    .tab-btn.active { background:#fff; color: var(--accent); box-shadow: var(--shadow-sm); }
+    .tab-btn.active { background:#f6f1e9; color:#1a140e; box-shadow: var(--shadow-sm); }
 
-    #micBtn { background: var(--grad); color:#fff; box-shadow: 0 14px 34px rgba(180,140,230,0.42); }
+    #micBtn { background: var(--grad); color:#fff; box-shadow: 0 16px 40px rgba(255,140,40,0.4); }
     #micBtn.listening { background: var(--grad); animation: pulse 1.2s infinite; }
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(150,140,240,0.5); }
-      70% { box-shadow: 0 0 0 22px rgba(150,140,240,0); }
-      100% { box-shadow: 0 0 0 0 rgba(150,140,240,0); }
+      0% { box-shadow: 0 0 0 0 rgba(255,160,40,0.55); }
+      70% { box-shadow: 0 0 0 22px rgba(255,160,40,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,160,40,0); }
     }
     .status.active { color: var(--accent); }
     .spinner { border-color: var(--accent); border-top-color: transparent; }
 
-    thead tr { background: rgba(255,255,255,0.4); } thead th { color: var(--muted); }
+    thead tr { background: rgba(255,255,255,0.05); } thead th { color: var(--muted); }
     tbody tr { border-top:1px solid var(--line); }
     .editable .val { color: var(--ink); } .editable .unit { color: var(--muted); }
-    .editable.empty .val { color: var(--faint); } .editable:hover { background: rgba(120,130,160,0.1); }
-    .delete-btn { color: var(--faint); } .delete-btn:hover { color:#e5484d; }
+    .editable.empty .val { color: var(--faint); } .editable:hover { background: rgba(255,255,255,0.08); }
+    .delete-btn { color: var(--faint); } .delete-btn:hover { color:#ff7a6e; }
 
-    .badge-chest{background:#ffe1e8;color:#e0466e} .badge-back{background:#dceaff;color:#2f6bd6}
-    .badge-legs{background:#d6f5e1;color:#1f9d57} .badge-shoulders{background:#fff0cc;color:#c98a09}
-    .badge-arms{background:#ece0ff;color:#8a4bd6} .badge-core{background:#ffe6d1;color:#d97a1f}
-    .badge-neck{background:#d3f5f0;color:#149b8e} .badge-cardio{background:#d8ecff;color:#2b86d6}
-    .badge-other{background:#e9edf4;color:#6b7488}
+    .badge-chest{background:rgba(255,107,107,0.16);color:#ff8f8f} .badge-back{background:rgba(107,181,255,0.16);color:#85beff}
+    .badge-legs{background:rgba(107,255,142,0.14);color:#84e6a2} .badge-shoulders{background:rgba(255,200,60,0.16);color:#ffd25e}
+    .badge-arms{background:rgba(196,107,255,0.16);color:#cf95ff} .badge-core{background:rgba(255,170,107,0.16);color:#ffba85}
+    .badge-neck{background:rgba(107,255,238,0.14);color:#79e6da} .badge-cardio{background:rgba(94,200,255,0.16);color:#79d2ff}
+    .badge-other{background:rgba(255,255,255,0.09);color:#b9b1a4}
 
     .date-label-line { background: var(--line); }
     .date-label-count { background: var(--glass2); border:1px solid var(--brd); }
-    .modal-overlay { background: rgba(70,80,110,0.35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+    .modal-overlay { background: rgba(10,7,4,0.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 
     .install-bar { color: var(--text); }
-    .install-bar .install-go { background: var(--gradb); color:#fff; } .install-bar .install-x { color: var(--muted); }
+    .install-bar .install-go { background: var(--gradb); color:#2e2000; } .install-bar .install-x { color: var(--muted); }
 
     .auth-divider { color: var(--muted); } .auth-divider::before, .auth-divider::after { background: var(--line); }
     .auth-toggle { color: var(--muted); } .auth-toggle a { color: var(--accent); }
-    .google-btn { background:#fff; border:1px solid var(--brd); color:#3a4254; box-shadow: var(--shadow-sm); }
-    .google-btn:hover { background:#f6f7fb; }
-    .auth-msg.error { background:#ffe9ea; color:#d11a1f; border:1px solid #ffc9cc; }
-    .auth-msg.info  { background:#e3f7ee; color:#0f9d58; border:1px solid #bdebd4; }
+    .google-btn { background:#f6f1e9; border:1px solid var(--brd); color:#2a241c; box-shadow: var(--shadow-sm); }
+    .google-btn:hover { background:#fff; }
+    .auth-msg.error { background: rgba(255,90,70,0.14); color:#ff9181; border:1px solid rgba(255,90,70,0.35); }
+    .auth-msg.info  { background: rgba(126,226,154,0.12); color:#8fe3a8; border:1px solid rgba(126,226,154,0.3); }
 
-    .pr-tag { color:#a06a00; background:#fff3cf; }
-    .kind-tag { color:#2b86d6; background:#d8ecff; }
+    .pr-tag { color:#ffce4d; background: rgba(255,176,32,0.18); }
+    .kind-tag { color:#79d2ff; background: rgba(94,200,255,0.16); }
     .fb-row { color: var(--text); background: var(--glass2); border:1px solid var(--brd); }
     .fb-row b { color: var(--ink); }
-    .fb-row.pr { color:#a06a00; background:#fff6da; border-color:#ffe09a; }
-    .fb-row.pr b { color:#7a5200; }
-    @keyframes prpulse { 50% { border-color:#ffd54a; box-shadow:0 0 16px rgba(255,200,80,0.4); } }
+    .fb-row.pr { color:#ffd877; background: rgba(255,176,32,0.14); border-color: rgba(255,176,32,0.4); }
+    .fb-row.pr b { color:#ffe6a3; }
+    @keyframes prpulse { 50% { border-color:#ffb020; box-shadow:0 0 18px rgba(255,176,32,0.45); } }
 
-    .day-dot .dot { background: rgba(120,130,160,0.18); border:1px solid var(--line); }
+    .day-dot .dot { background: rgba(255,255,255,0.08); border:1px solid var(--line); }
     .day-dot.on .dot { background: var(--accent); border-color: var(--accent); }
     .day-dot .dl { color: var(--muted); }
-    .week-meta .goal-hit { color:#1f9d57; } .week-meta .streak { color:#e8590c; }
+    .week-meta .goal-hit { color:#7ee29a; } .week-meta .streak { color:#ffb648; }
 
-    .heat-cell { background: rgba(120,130,160,0.14); }
-    .heat-cell.t1{background:#cdd6f7} .heat-cell.t2{background:#97a6f0} .heat-cell.t3{background:#6d7bf7}
+    .heat-cell { background: rgba(255,255,255,0.06); }
+    .heat-cell.t1{background:rgba(255,176,32,0.3)} .heat-cell.t2{background:rgba(255,176,32,0.6)} .heat-cell.t3{background:#ffb020}
 
     .pm-cell { background: var(--glass2); }
     .routine-row { border-top:1px solid var(--line); }
-    .review-card { background: rgba(255,250,235,0.62); border:1px solid #f0dca8;
-      -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-radius: var(--r); }
+    .review-card { background: rgba(255,176,32,0.07); border:1px solid rgba(255,176,32,0.3);
+      -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); border-radius: var(--r); }
     .rev-del { border:1px solid var(--line); color: var(--muted); }
-    .rev-del:hover { color:#e5484d; border-color:#ffc9cc; }
+    .rev-del:hover { color:#ff7a6e; border-color: rgba(255,90,70,0.4); }
 
     @media (max-width:600px){
       .tabs {
-        background: rgba(255,255,255,0.72);
-        -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
-        border-top:1px solid var(--brd); box-shadow:0 -6px 24px rgba(90,110,170,0.12);
+        background: rgba(22,16,11,0.78);
+        -webkit-backdrop-filter: blur(26px) saturate(140%); backdrop-filter: blur(26px) saturate(140%);
+        border-top:1px solid var(--brd); box-shadow:0 -8px 26px rgba(0,0,0,0.4);
       }
-      .tab-btn.active { background: rgba(120,130,160,0.12); box-shadow:none; }
+      .tab-btn.active { background: rgba(246,241,233,0.92); color:#1a140e; box-shadow:none; }
       tbody tr { border-top:1px solid var(--line); }
       td.col-num::before { color: var(--muted); }
     }
@@ -590,7 +590,7 @@
 <!-- ════════ AUTH SCREEN ════════ -->
 <div id="authScreen" style="display:none">
   <div class="auth-card">
-    <div class="auth-logo">🎙️</div>
+    <div class="auth-logo">💪</div>
     <div class="auth-title">SaySet</div>
     <div class="auth-sub" id="authSub">Speak your sets — log in to start</div>
 
@@ -628,7 +628,7 @@
   <div class="modal">
     <h2>Set a new password</h2>
     <label style="font-size:0.74rem;color:#666;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:6px">New password</label>
-    <input type="password" id="resetPassword" placeholder="••••••••" style="width:100%;background:rgba(255,255,255,0.6);border:1px solid rgba(110,125,160,0.18);color:#262d40;border-radius:8px;padding:11px 12px;font-size:16px;outline:none" />
+    <input type="password" id="resetPassword" placeholder="••••••••" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#f6f1e9;border-radius:8px;padding:11px 12px;font-size:16px;outline:none" />
     <div class="modal-actions"><button class="btn-primary" id="resetSave" style="flex:1">Update password</button></div>
     <div class="auth-msg" id="resetMsg"></div>
   </div>
@@ -639,7 +639,7 @@
 
   <div class="app-header">
     <div>
-      <h1 style="font-size:1.5rem">🎙️ SaySet</h1>
+      <h1 style="font-size:1.5rem">💪 SaySet</h1>
       <span class="who">Signed in as <b id="userEmail">—</b></span>
     </div>
     <button class="btn-sm" id="logoutBtn">Log out</button>
@@ -1557,10 +1557,10 @@
       options:{
         responsive:true, maintainAspectRatio:false,
         interaction:{ mode:'nearest', intersect:false },
-        plugins:{ legend:{ labels:{ color:'#5a6276', boxWidth:12, font:{size:11} } } },
+        plugins:{ legend:{ labels:{ color:'#b9b1a4', boxWidth:12, font:{size:11} } } },
         scales:{
-          x:{ ticks:{ color:'#8b93a8' }, grid:{ color:'rgba(110,125,160,0.16)' } },
-          y:{ ticks:{ color:'#8b93a8' }, grid:{ color:'rgba(110,125,160,0.16)' }, beginAtZero: progMetric==='volume' }
+          x:{ ticks:{ color:'#8c8578' }, grid:{ color:'rgba(255,255,255,0.08)' } },
+          y:{ ticks:{ color:'#8c8578' }, grid:{ color:'rgba(255,255,255,0.08)' }, beginAtZero: progMetric==='volume' }
         }
       }
     });
@@ -1609,8 +1609,8 @@
     if (!labels.length){ note.textContent = 'Log sets with weight & reps to see your muscle balance.'; return; }
     balanceChart = new Chart(document.getElementById('balanceChart'), {
       type:'doughnut',
-      data:{ labels, datasets:[{ data: labels.map(l=>Math.round(vol[l])), backgroundColor: labels.map(l=>MUSCLE_COLORS[l]||'#9e9e9e'), borderColor:'#ffffff', borderWidth:2 }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#5a6276', boxWidth:12, font:{size:11} } } } }
+      data:{ labels, datasets:[{ data: labels.map(l=>Math.round(vol[l])), backgroundColor: labels.map(l=>MUSCLE_COLORS[l]||'#9e9e9e'), borderColor:'#171009', borderWidth:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#b9b1a4', boxWidth:12, font:{size:11} } } } }
     });
     const missing = ['chest','back','legs','shoulders','arms','core'].filter(m => !vol[m]);
     note.textContent = missing.length ? `Neglected: ${missing.join(', ')} — consider adding these.` : 'Nice balance across muscle groups 💪';
@@ -1641,12 +1641,12 @@
   //  PROFILE — weight/height, BMI, strength rank
   // ════════════════════════════════════════════════════════════════════════
   const RANK_META = [
-    { name:'Rookie',       emoji:'🥚', color:'#8a93a8' },
-    { name:'Beginner',     emoji:'🐣', color:'#2f9e44' },
-    { name:'Intermediate', emoji:'💪', color:'#1f7ad6' },
-    { name:'Advanced',     emoji:'🔥', color:'#c98a09' },
-    { name:'Professional', emoji:'🏆', color:'#e8590c' },
-    { name:'Godlike',      emoji:'⚡', color:'#d6336c' },
+    { name:'Rookie',       emoji:'🥚', color:'#9b9486' },
+    { name:'Beginner',     emoji:'🐣', color:'#43c46a' },
+    { name:'Intermediate', emoji:'💪', color:'#4f9dff' },
+    { name:'Advanced',     emoji:'🔥', color:'#ffc23d' },
+    { name:'Professional', emoji:'🏆', color:'#ff8a3d' },
+    { name:'Godlike',      emoji:'⚡', color:'#ff5e7a' },
   ];
   const LIFT_MUSCLE = { 'Bench Press':'chest', 'Deadlift':'back', 'Squat':'legs', 'Overhead Press':'shoulders' };
   // bodyweight-multiple thresholds to reach ranks 1..5 (general estimates, by sex)
@@ -1913,18 +1913,21 @@
     const c = document.createElement('canvas'); c.width = S; c.height = S;
     const x = c.getContext('2d');
     const bg = x.createLinearGradient(0,0,S,S);
-    bg.addColorStop(0,'#ffe3ef'); bg.addColorStop(0.5,'#e9e2fb'); bg.addColorStop(1,'#dde8fb');
+    bg.addColorStop(0,'#1c1409'); bg.addColorStop(0.55,'#120d08'); bg.addColorStop(1,'#1a1106');
     x.fillStyle = bg; x.fillRect(0,0,S,S);
+    const glow = x.createRadialGradient(S*0.78, S*0.18, 40, S*0.78, S*0.18, S*0.7);
+    glow.addColorStop(0,'rgba(255,150,40,0.28)'); glow.addColorStop(1,'rgba(255,150,40,0)');
+    x.fillStyle = glow; x.fillRect(0,0,S,S);
     x.strokeStyle = r.color; x.lineWidth = 14; x.strokeRect(40,40,S-80,S-80);
     x.textAlign = 'center';
     x.font = 'bold 140px sans-serif'; x.fillText(r.emoji, S/2, 340);
-    x.fillStyle = '#3a4254'; x.font = '600 46px sans-serif'; x.fillText('STRENGTH RANK', S/2, 450);
+    x.fillStyle = '#b9b1a4'; x.font = '600 46px sans-serif'; x.fillText('STRENGTH RANK', S/2, 450);
     x.fillStyle = r.color; x.font = 'bold 150px sans-serif'; x.fillText(r.name, S/2, 610);
-    x.fillStyle = '#5a6276'; x.font = '400 40px sans-serif';
+    x.fillStyle = '#8c8578'; x.font = '400 40px sans-serif';
     let yy = 720;
     s.perLift.forEach(l => { x.fillText(`${l.lift}: ${dispW(l.weight)}${units} · ${l.ratio.toFixed(2)}× BW`, S/2, yy); yy += 60; });
-    x.fillStyle = '#6d7bf7'; x.font = 'bold 56px sans-serif'; x.fillText('🎙️ SaySet', S/2, 980);
-    x.fillStyle = '#8b93a8'; x.font = '400 34px sans-serif'; x.fillText('sayset.vercel.app', S/2, 1032);
+    x.fillStyle = '#ffb020'; x.font = 'bold 56px sans-serif'; x.fillText('💪 SaySet', S/2, 980);
+    x.fillStyle = '#6f685c'; x.font = '400 34px sans-serif'; x.fillText('sayset.vercel.app', S/2, 1032);
     c.toBlob(async (blob) => {
       const file = new File([blob], 'set-rank.png', { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1958,8 +1961,8 @@
              datasets:[{ label:'Bodyweight ('+units+')', data: bwRows.map(r => dispW(r.weight_kg)),
                          borderColor:'#6bb5ff', backgroundColor:'#6bb5ff', tension:0.3, pointRadius:3, borderWidth:2 }] },
       options:{ responsive:true, maintainAspectRatio:false,
-                plugins:{ legend:{ labels:{ color:'#5a6276', font:{size:11} } } },
-                scales:{ x:{ ticks:{color:'#8b93a8'}, grid:{color:'#1e1e1e'} }, y:{ ticks:{color:'#8b93a8'}, grid:{color:'#1e1e1e'} } } }
+                plugins:{ legend:{ labels:{ color:'#b9b1a4', font:{size:11} } } },
+                scales:{ x:{ ticks:{color:'#8c8578'}, grid:{color:'#1e1e1e'} }, y:{ ticks:{color:'#8c8578'}, grid:{color:'#1e1e1e'} } } }
     });
   }
   document.getElementById('bwLogBtn').addEventListener('click', async () => {
