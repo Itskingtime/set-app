@@ -1,0 +1,8 @@
+{
+  "name": "set-app",
+  "private": true,
+  "description": "Set — voice workout logger (Vercel serverless deps)",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
