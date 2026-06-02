@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Set — Voice Workout Logger</title>
+  <title>SaySet — Voice Workout Logger</title>
 
   <!-- PWA / mobile -->
-  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="theme-color" content="#e7ecf5" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Set" />
+  <meta name="apple-mobile-web-app-title" content="SaySet" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
@@ -444,6 +444,145 @@
     .routine-info b { color:#eee; font-size:0.92rem; }
     .routine-info span { color:#666; font-size:0.76rem; }
     .routine-actions { display:flex; gap:8px; }
+
+    /* ══════════════════════════════════════════════════════════════════
+       SaySet — glassmorphic light theme (this layer overrides the above)
+       ══════════════════════════════════════════════════════════════════ */
+    :root {
+      --ink:#262d40; --text:#5a6276; --muted:#8b93a8; --faint:#aab2c4;
+      --line:rgba(110,125,160,0.18);
+      --glass:rgba(255,255,255,0.46); --glass2:rgba(255,255,255,0.64); --brd:rgba(255,255,255,0.66);
+      --field:rgba(255,255,255,0.55);
+      --accent:#6d7bf7;
+      --gradb:linear-gradient(135deg,#7b8cff 0%,#b07bf7 100%);
+      --grad:linear-gradient(135deg,#ff9ec4 0%,#b69bff 52%,#7db8ff 100%);
+      --shadow:0 10px 34px rgba(90,110,170,0.16); --shadow-sm:0 4px 16px rgba(90,110,170,0.12);
+      --r:22px;
+    }
+    body {
+      background:
+        radial-gradient(60% 50% at 82% 8%, rgba(255,193,219,0.55), transparent 60%),
+        radial-gradient(52% 46% at 8% 92%, rgba(170,196,255,0.5), transparent 60%),
+        linear-gradient(150deg,#d4e8df 0%,#edf0e8 34%,#ece6f4 66%,#dde8f7 100%);
+      background-attachment: fixed; color: var(--text);
+    }
+    h1 { color: var(--ink); } .subtitle { color: var(--muted); }
+
+    .auth-card, .profile-card, .table-wrap, .result-box, .chart-box, .stat-card,
+    .bmi-card, .rank-card, .about-card, .coach-card, .ask-card, .balance-card,
+    .heat-card, .week-strip, .modal, .api-banner, .install-bar {
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(22px) saturate(150%); backdrop-filter: blur(22px) saturate(150%);
+      border: 1px solid var(--brd); border-radius: var(--r); box-shadow: var(--shadow);
+    }
+    .api-banner { color: var(--muted); } .api-dot { background:#34d399; }
+
+    .section-title, .card-title, .fld-label, .auth-card label, .modal label,
+    .stat-label, .date-label-sub, .auth-sub, .rank-sub, .bmi-cat, .mic-label,
+    .status, .date-label-count, .routine-info span, .stat-val small { color: var(--muted); }
+    .ex-name, .modal h2, .bmi-val, .stat-val, .date-label-text, .routine-info b, .auth-title { color: var(--ink); }
+    .empty, .loading, .prof-note, .records-empty, .prog-empty, .balance-note { color: var(--faint); }
+    .transcript-box, .lift-row, .ai-text, .about-text, .week-meta { color: var(--text); }
+    .transcript-box.interim { color: var(--muted); }
+    .log-text { color: var(--muted); } .log-text b, .about-text b { color: var(--ink); }
+    .lift-row .lift-rank { color: var(--muted); } .about-link { color: var(--accent); }
+
+    .auth-card input, .modal input, .profile-card input, .profile-card select,
+    .ask-row input, .bw-log-row input, .rev-item input {
+      background: var(--field); border:1px solid var(--line); color: var(--ink);
+    }
+    .auth-card input:focus, .modal input:focus, .profile-card input:focus, .profile-card select:focus,
+    .ask-row input:focus, .bw-log-row input:focus, .rev-item input:focus { border-color: var(--accent); }
+    .edit-input { background:#fff; border:1px solid var(--accent); color: var(--ink); }
+
+    .auth-btn, .btn-primary { background: var(--gradb); color:#fff; box-shadow: var(--shadow-sm); }
+    .auth-btn:hover, .btn-primary:hover { filter: brightness(1.06); background: var(--gradb); }
+    .btn-cancel { background: rgba(120,130,160,0.12); color: var(--text); }
+    .btn-cancel:hover { background: rgba(120,130,160,0.2); color: var(--ink); }
+    .auth-btn, .btn-primary, .btn-cancel, .review-actions button, .modal-actions button { border-radius:14px; }
+
+    .btn-sm, .chip {
+      background: var(--glass2); border:1px solid var(--brd); color: var(--text);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    }
+    .btn-sm:hover { background:#fff; color: var(--ink); border-color: var(--brd); }
+    .chip.active { background: var(--gradb); color:#fff; border-color: transparent; }
+    .btn-sm.danger { color:#e5484d; }
+    .btn-sm.danger:hover { background:#ffe9ea; color:#d11a1f; border-color:#ffc9cc; }
+
+    .tabs { background: var(--glass); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border:1px solid var(--brd); box-shadow: var(--shadow-sm); }
+    .tab-btn { color: var(--muted); }
+    .tab-btn.active { background:#fff; color: var(--accent); box-shadow: var(--shadow-sm); }
+
+    #micBtn { background: var(--grad); color:#fff; box-shadow: 0 14px 34px rgba(180,140,230,0.42); }
+    #micBtn.listening { background: var(--grad); animation: pulse 1.2s infinite; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(150,140,240,0.5); }
+      70% { box-shadow: 0 0 0 22px rgba(150,140,240,0); }
+      100% { box-shadow: 0 0 0 0 rgba(150,140,240,0); }
+    }
+    .status.active { color: var(--accent); }
+    .spinner { border-color: var(--accent); border-top-color: transparent; }
+
+    thead tr { background: rgba(255,255,255,0.4); } thead th { color: var(--muted); }
+    tbody tr { border-top:1px solid var(--line); }
+    .editable .val { color: var(--ink); } .editable .unit { color: var(--muted); }
+    .editable.empty .val { color: var(--faint); } .editable:hover { background: rgba(120,130,160,0.1); }
+    .delete-btn { color: var(--faint); } .delete-btn:hover { color:#e5484d; }
+
+    .badge-chest{background:#ffe1e8;color:#e0466e} .badge-back{background:#dceaff;color:#2f6bd6}
+    .badge-legs{background:#d6f5e1;color:#1f9d57} .badge-shoulders{background:#fff0cc;color:#c98a09}
+    .badge-arms{background:#ece0ff;color:#8a4bd6} .badge-core{background:#ffe6d1;color:#d97a1f}
+    .badge-neck{background:#d3f5f0;color:#149b8e} .badge-cardio{background:#d8ecff;color:#2b86d6}
+    .badge-other{background:#e9edf4;color:#6b7488}
+
+    .date-label-line { background: var(--line); }
+    .date-label-count { background: var(--glass2); border:1px solid var(--brd); }
+    .modal-overlay { background: rgba(70,80,110,0.35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+    .install-bar { color: var(--text); }
+    .install-bar .install-go { background: var(--gradb); color:#fff; } .install-bar .install-x { color: var(--muted); }
+
+    .auth-divider { color: var(--muted); } .auth-divider::before, .auth-divider::after { background: var(--line); }
+    .auth-toggle { color: var(--muted); } .auth-toggle a { color: var(--accent); }
+    .google-btn { background:#fff; border:1px solid var(--brd); color:#3a4254; box-shadow: var(--shadow-sm); }
+    .google-btn:hover { background:#f6f7fb; }
+    .auth-msg.error { background:#ffe9ea; color:#d11a1f; border:1px solid #ffc9cc; }
+    .auth-msg.info  { background:#e3f7ee; color:#0f9d58; border:1px solid #bdebd4; }
+
+    .pr-tag { color:#a06a00; background:#fff3cf; }
+    .kind-tag { color:#2b86d6; background:#d8ecff; }
+    .fb-row { color: var(--text); background: var(--glass2); border:1px solid var(--brd); }
+    .fb-row b { color: var(--ink); }
+    .fb-row.pr { color:#a06a00; background:#fff6da; border-color:#ffe09a; }
+    .fb-row.pr b { color:#7a5200; }
+    @keyframes prpulse { 50% { border-color:#ffd54a; box-shadow:0 0 16px rgba(255,200,80,0.4); } }
+
+    .day-dot .dot { background: rgba(120,130,160,0.18); border:1px solid var(--line); }
+    .day-dot.on .dot { background: var(--accent); border-color: var(--accent); }
+    .day-dot .dl { color: var(--muted); }
+    .week-meta .goal-hit { color:#1f9d57; } .week-meta .streak { color:#e8590c; }
+
+    .heat-cell { background: rgba(120,130,160,0.14); }
+    .heat-cell.t1{background:#cdd6f7} .heat-cell.t2{background:#97a6f0} .heat-cell.t3{background:#6d7bf7}
+
+    .pm-cell { background: var(--glass2); }
+    .routine-row { border-top:1px solid var(--line); }
+    .review-card { background: rgba(255,250,235,0.62); border:1px solid #f0dca8;
+      -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-radius: var(--r); }
+    .rev-del { border:1px solid var(--line); color: var(--muted); }
+    .rev-del:hover { color:#e5484d; border-color:#ffc9cc; }
+
+    @media (max-width:600px){
+      .tabs {
+        background: rgba(255,255,255,0.72);
+        -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
+        border-top:1px solid var(--brd); box-shadow:0 -6px 24px rgba(90,110,170,0.12);
+      }
+      .tab-btn.active { background: rgba(120,130,160,0.12); box-shadow:none; }
+      tbody tr { border-top:1px solid var(--line); }
+      td.col-num::before { color: var(--muted); }
+    }
   </style>
 </head>
 <body>
@@ -452,7 +591,7 @@
 <div id="authScreen" style="display:none">
   <div class="auth-card">
     <div class="auth-logo">🎙️</div>
-    <div class="auth-title">Set</div>
+    <div class="auth-title">SaySet</div>
     <div class="auth-sub" id="authSub">Speak your sets — log in to start</div>
 
     <label>Email</label>
@@ -489,7 +628,7 @@
   <div class="modal">
     <h2>Set a new password</h2>
     <label style="font-size:0.74rem;color:#666;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:6px">New password</label>
-    <input type="password" id="resetPassword" placeholder="••••••••" style="width:100%;background:#111;border:1px solid #2a2a2a;color:#f0f0f0;border-radius:8px;padding:11px 12px;font-size:16px;outline:none" />
+    <input type="password" id="resetPassword" placeholder="••••••••" style="width:100%;background:rgba(255,255,255,0.6);border:1px solid rgba(110,125,160,0.18);color:#262d40;border-radius:8px;padding:11px 12px;font-size:16px;outline:none" />
     <div class="modal-actions"><button class="btn-primary" id="resetSave" style="flex:1">Update password</button></div>
     <div class="auth-msg" id="resetMsg"></div>
   </div>
@@ -500,7 +639,7 @@
 
   <div class="app-header">
     <div>
-      <h1 style="font-size:1.5rem">🎙️ Set</h1>
+      <h1 style="font-size:1.5rem">🎙️ SaySet</h1>
       <span class="who">Signed in as <b id="userEmail">—</b></span>
     </div>
     <button class="btn-sm" id="logoutBtn">Log out</button>
@@ -686,8 +825,8 @@
       <div class="prof-msg" id="remindersMsg"></div>
     </div>
 
-    <div class="profile-card" style="border-color:#4a2020">
-      <div class="card-title" style="color:#ff8585">Danger zone</div>
+    <div class="profile-card" style="border-color:rgba(229,72,77,0.4)">
+      <div class="card-title" style="color:#e5484d">Danger zone</div>
       <button class="btn-sm danger" id="deleteAccount">Delete account &amp; all data</button>
     </div>
   </div>
@@ -1418,10 +1557,10 @@
       options:{
         responsive:true, maintainAspectRatio:false,
         interaction:{ mode:'nearest', intersect:false },
-        plugins:{ legend:{ labels:{ color:'#aaa', boxWidth:12, font:{size:11} } } },
+        plugins:{ legend:{ labels:{ color:'#5a6276', boxWidth:12, font:{size:11} } } },
         scales:{
-          x:{ ticks:{ color:'#777' }, grid:{ color:'#1e1e1e' } },
-          y:{ ticks:{ color:'#777' }, grid:{ color:'#1e1e1e' }, beginAtZero: progMetric==='volume' }
+          x:{ ticks:{ color:'#8b93a8' }, grid:{ color:'rgba(110,125,160,0.16)' } },
+          y:{ ticks:{ color:'#8b93a8' }, grid:{ color:'rgba(110,125,160,0.16)' }, beginAtZero: progMetric==='volume' }
         }
       }
     });
@@ -1470,8 +1609,8 @@
     if (!labels.length){ note.textContent = 'Log sets with weight & reps to see your muscle balance.'; return; }
     balanceChart = new Chart(document.getElementById('balanceChart'), {
       type:'doughnut',
-      data:{ labels, datasets:[{ data: labels.map(l=>Math.round(vol[l])), backgroundColor: labels.map(l=>MUSCLE_COLORS[l]||'#9e9e9e'), borderColor:'#1a1a1a', borderWidth:2 }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#aaa', boxWidth:12, font:{size:11} } } } }
+      data:{ labels, datasets:[{ data: labels.map(l=>Math.round(vol[l])), backgroundColor: labels.map(l=>MUSCLE_COLORS[l]||'#9e9e9e'), borderColor:'#ffffff', borderWidth:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#5a6276', boxWidth:12, font:{size:11} } } } }
     });
     const missing = ['chest','back','legs','shoulders','arms','core'].filter(m => !vol[m]);
     note.textContent = missing.length ? `Neglected: ${missing.join(', ')} — consider adding these.` : 'Nice balance across muscle groups 💪';
@@ -1502,12 +1641,12 @@
   //  PROFILE — weight/height, BMI, strength rank
   // ════════════════════════════════════════════════════════════════════════
   const RANK_META = [
-    { name:'Rookie',       emoji:'🥚', color:'#9e9e9e' },
-    { name:'Beginner',     emoji:'🐣', color:'#6bff8e' },
-    { name:'Intermediate', emoji:'💪', color:'#6bb5ff' },
-    { name:'Advanced',     emoji:'🔥', color:'#ffe56b' },
-    { name:'Professional', emoji:'🏆', color:'#ffaa6b' },
-    { name:'Godlike',      emoji:'⚡', color:'#ff6b6b' },
+    { name:'Rookie',       emoji:'🥚', color:'#8a93a8' },
+    { name:'Beginner',     emoji:'🐣', color:'#2f9e44' },
+    { name:'Intermediate', emoji:'💪', color:'#1f7ad6' },
+    { name:'Advanced',     emoji:'🔥', color:'#c98a09' },
+    { name:'Professional', emoji:'🏆', color:'#e8590c' },
+    { name:'Godlike',      emoji:'⚡', color:'#d6336c' },
   ];
   const LIFT_MUSCLE = { 'Bench Press':'chest', 'Deadlift':'back', 'Squat':'legs', 'Overhead Press':'shoulders' };
   // bodyweight-multiple thresholds to reach ranks 1..5 (general estimates, by sex)
@@ -1773,17 +1912,19 @@
     const S = 1080;
     const c = document.createElement('canvas'); c.width = S; c.height = S;
     const x = c.getContext('2d');
-    x.fillStyle = '#0f0f0f'; x.fillRect(0,0,S,S);
+    const bg = x.createLinearGradient(0,0,S,S);
+    bg.addColorStop(0,'#ffe3ef'); bg.addColorStop(0.5,'#e9e2fb'); bg.addColorStop(1,'#dde8fb');
+    x.fillStyle = bg; x.fillRect(0,0,S,S);
     x.strokeStyle = r.color; x.lineWidth = 14; x.strokeRect(40,40,S-80,S-80);
     x.textAlign = 'center';
     x.font = 'bold 140px sans-serif'; x.fillText(r.emoji, S/2, 340);
-    x.fillStyle = '#f0f0f0'; x.font = '600 46px sans-serif'; x.fillText('STRENGTH RANK', S/2, 450);
+    x.fillStyle = '#3a4254'; x.font = '600 46px sans-serif'; x.fillText('STRENGTH RANK', S/2, 450);
     x.fillStyle = r.color; x.font = 'bold 150px sans-serif'; x.fillText(r.name, S/2, 610);
-    x.fillStyle = '#999'; x.font = '400 40px sans-serif';
+    x.fillStyle = '#5a6276'; x.font = '400 40px sans-serif';
     let yy = 720;
     s.perLift.forEach(l => { x.fillText(`${l.lift}: ${dispW(l.weight)}${units} · ${l.ratio.toFixed(2)}× BW`, S/2, yy); yy += 60; });
-    x.fillStyle = '#ff4545'; x.font = 'bold 56px sans-serif'; x.fillText('🎙️ Set', S/2, 980);
-    x.fillStyle = '#555'; x.font = '400 34px sans-serif'; x.fillText('sayset.vercel.app', S/2, 1032);
+    x.fillStyle = '#6d7bf7'; x.font = 'bold 56px sans-serif'; x.fillText('🎙️ SaySet', S/2, 980);
+    x.fillStyle = '#8b93a8'; x.font = '400 34px sans-serif'; x.fillText('sayset.vercel.app', S/2, 1032);
     c.toBlob(async (blob) => {
       const file = new File([blob], 'set-rank.png', { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1817,8 +1958,8 @@
              datasets:[{ label:'Bodyweight ('+units+')', data: bwRows.map(r => dispW(r.weight_kg)),
                          borderColor:'#6bb5ff', backgroundColor:'#6bb5ff', tension:0.3, pointRadius:3, borderWidth:2 }] },
       options:{ responsive:true, maintainAspectRatio:false,
-                plugins:{ legend:{ labels:{ color:'#aaa', font:{size:11} } } },
-                scales:{ x:{ ticks:{color:'#777'}, grid:{color:'#1e1e1e'} }, y:{ ticks:{color:'#777'}, grid:{color:'#1e1e1e'} } } }
+                plugins:{ legend:{ labels:{ color:'#5a6276', font:{size:11} } } },
+                scales:{ x:{ ticks:{color:'#8b93a8'}, grid:{color:'#1e1e1e'} }, y:{ ticks:{color:'#8b93a8'}, grid:{color:'#1e1e1e'} } } }
     });
   }
   document.getElementById('bwLogBtn').addEventListener('click', async () => {
