@@ -1050,8 +1050,12 @@
     weeklyGoal = m0.weekly_goal || 4;
     confirmSave = m0.confirm_save !== false;
     await loadAll();
-    // first-time users: nudge them to enter weight/height
-    if (!(currentUser.user_metadata && currentUser.user_metadata.weight_kg)) {
+    // app-shortcut deep links (?tab=progress) take priority
+    const tp = new URLSearchParams(location.search).get('tab');
+    if (['log','progress','records','profile'].includes(tp)) {
+      document.querySelector(`[data-tab="${tp}"]`).click();
+    } else if (!(currentUser.user_metadata && currentUser.user_metadata.weight_kg)) {
+      // first-time users: nudge them to enter weight/height
       document.querySelector('[data-tab="profile"]').click();
     }
   }
