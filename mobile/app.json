@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#120d0a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "fit.sayset.app",
       "versionCode": 1,
@@ -21,13 +23,23 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ff9d2e"
       },
-      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "INTERNET", "VIBRATE"]
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "INTERNET",
+        "VIBRATE"
+      ]
     },
     "ios": {
       "bundleIdentifier": "fit.sayset.app",
       "supportsTablet": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "SaySet uses your microphone to log workouts by voice."
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "876d2638-cdbf-4edd-92df-147582b41c0b"
       }
     }
   }
