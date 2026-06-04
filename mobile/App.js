@@ -1,8 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { SafeAreaView, StyleSheet, BackHandler, ActivityIndicator, View, Linking } from 'react-native';
+import { SafeAreaView, StyleSheet, BackHandler, ActivityIndicator, View, Linking, PermissionsAndroid, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
-import { Audio } from 'expo-av';
 
 const APP_URL = 'https://sayset.fit';
 
@@ -23,7 +22,9 @@ export default function App() {
 
   useEffect(() => {
     // request the mic up-front so voice logging works inside the WebView
-    Audio.requestPermissionsAsync().catch(() => {});
+    if (Platform.OS === 'android') {
+      PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO).catch(() => {});
+    }
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (canGoBack.current && webRef.current) { webRef.current.goBack(); return true; }
       return false;
