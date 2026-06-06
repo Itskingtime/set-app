@@ -17,7 +17,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <script>try{if(localStorage.getItem('sayset_consent_v1')==='1')document.documentElement.classList.add('consented');}catch(e){}</script>
+  <script>try{if(localStorage.getItem('sayset_consent_v2')==='1')document.documentElement.classList.add('consented');}catch(e){}</script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
@@ -626,6 +626,10 @@
     #consentContinue { margin-top: 18px; }
     #consentContinue:disabled { opacity: 0.45; cursor: default; }
     .consent-foot { font-size: 0.72rem; color: var(--muted); text-align: center; margin-top: 12px; }
+    .doc-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .doc-tab { flex: 1; padding: 8px 6px; border-radius: 9px; border: 1px solid var(--brd); background: var(--glass2); color: var(--muted); font-size: 0.76rem; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+    .doc-tab.active { background: var(--gradb); color: #2e2000; border-color: transparent; }
+    .policy-scroll .tos-warn { background: rgba(255,176,32,0.12); border: 1px solid rgba(255,176,32,0.3); border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: #ffd877; font-weight: 600; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -635,19 +639,23 @@
   <div class="consent-card">
     <div class="consent-logo">💪</div>
     <div class="consent-title">Welcome to SaySet</div>
-    <div class="consent-sub">Please review our Privacy Policy and confirm your age before continuing.</div>
-    <div id="consentPolicy" class="policy-scroll"></div>
-    <label class="consent-check"><input type="checkbox" id="ageCheck" /> <span>I confirm I am <b>at least 13 years old</b>.</span></label>
-    <label class="consent-check"><input type="checkbox" id="ppCheck" /> <span>I have read and accept the <b>Privacy Policy</b>.</span></label>
+    <div class="consent-sub">Please review our Terms &amp; Privacy Policy and confirm your age before continuing.</div>
+    <div class="doc-tabs">
+      <button class="doc-tab active" data-doc="terms">Terms of Service</button>
+      <button class="doc-tab" data-doc="privacy">Privacy Policy</button>
+    </div>
+    <div id="consentDoc" class="policy-scroll"></div>
+    <label class="consent-check"><input type="checkbox" id="ageCheck" /> <span>I confirm I am <b>at least 18 years old</b>.</span></label>
+    <label class="consent-check"><input type="checkbox" id="ppCheck" /> <span>I have read and accept the <b>Terms of Service</b> and <b>Privacy Policy</b>.</span></label>
     <button id="consentContinue" class="auth-btn" disabled>Accept &amp; Continue</button>
-    <div class="consent-foot">SaySet is only available to users aged 13 and older.</div>
+    <div class="consent-foot">SaySet is only available to users aged 18 and older.</div>
   </div>
 </div>
 
 <!-- Privacy policy modal (re-openable from Profile → About) -->
 <div class="modal-overlay hidden" id="privacyModal">
   <div class="modal" style="max-width:540px">
-    <h2>Privacy Policy</h2>
+    <h2 id="docModalTitle">Privacy Policy</h2>
     <div id="privacyModalBody" class="policy-scroll" style="max-height:60vh"></div>
     <div class="modal-actions"><button class="btn-primary" id="privacyClose">Close</button></div>
   </div>
@@ -881,7 +889,7 @@
       <p class="about-text">Complaints &amp; suggestions:<br>
         <a class="about-link" href="mailto:dyspro16250@gmail.com?subject=Set%20app%20feedback">dyspro16250@gmail.com</a>
       </p>
-      <p class="about-text"><a class="about-link" id="privacyLink" style="cursor:pointer">Privacy Policy</a></p>
+      <p class="about-text"><a class="about-link" id="termsLink" style="cursor:pointer">Terms of Service</a> &middot; <a class="about-link" id="privacyLink" style="cursor:pointer">Privacy Policy</a></p>
       <p class="about-meta">Made by Ved Malik</p>
     </div>
 
@@ -997,7 +1005,7 @@
 <p>We retain your personal information for as long as your account is active or as needed to provide our services. You can request deletion of your account and associated data at any time. Voice recordings are deleted immediately after transcription. Transaction records may be retained as required by legal and financial compliance (typically 7 years). We may retain aggregated, anonymized data without time limits.</p>
 
 <h3>8. Children's Privacy</h3>
-<p>Our App is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13 years of age. If we become aware that a child under 13 has provided us with personal information, we will take steps to delete such information and terminate the child's account. If you believe we have collected information from a child under 13, please contact us immediately at the details provided in Section 12.</p>
+<p>Our App is not intended for users under the age of 18. We do not knowingly collect personal information from children under 18 years of age. If we become aware that a person under 18 has provided us with personal information, we will take steps to delete such information and terminate the account. If you believe we have collected information from a person under 18, please contact us immediately at the details provided in Section 12.</p>
 
 <h3>9. Cookies and Similar Technologies</h3>
 <p>Our App uses session cookies, persistent cookies, and analytics cookies to enhance your experience and improve our services. You can control cookie preferences through your device settings, though some features may not function properly without cookies.</p>
@@ -1022,9 +1030,138 @@
 <p class="policy-foot">&copy; 2026 sayset.fit. All rights reserved.</p>
 `;
 
+  const TOS_HTML = `
+<h2>Terms of Service</h2>
+<p class="policy-meta">sayset.fit &middot; Last Updated: 6 June 2026</p>
+<p class="tos-warn">PLEASE READ THESE TERMS CAREFULLY. THEY CONTAIN AN ASSUMPTION OF RISK (SECTION 9), A LIMITATION OF LIABILITY (SECTION 11), AND A BINDING ARBITRATION AND DISPUTE-RESOLUTION CLAUSE (SECTION 17). BY USING THE SERVICE YOU AGREE TO THESE TERMS.</p>
+
+<h3>1. Acceptance of Terms</h3>
+<p>Welcome to sayset.fit ("App," "Service," "we," "us," "our," or "Company"). These Terms of Service ("Terms") form a legally binding agreement between you ("User," "you," or "your") and sayset.fit governing your access to and use of the App and all associated services, features, content, and software (collectively, the "Service"). By accessing, downloading, installing, registering for, or using the Service in any manner, you confirm that you have read, understood, and agree to be bound by these Terms and by our Privacy Policy, which is incorporated by reference. If you do not agree, you must not access or use the Service.</p>
+<p>These Terms are an electronic record under the Information Technology Act, 2000 and the rules made thereunder, and do not require any physical or digital signature.</p>
+
+<h3>2. Definitions</h3>
+<ul>
+<li><b>"Account"</b> means your registered sayset.fit user account.</li>
+<li><b>"Content"</b> means any data, text, audio, voice recordings, images, workout logs, body metrics, or other materials processed through the Service.</li>
+<li><b>"User Content"</b> means Content that you create, upload, submit, or generate through the Service.</li>
+<li><b>"Subscription"</b> means any free or paid plan providing access to Service features.</li>
+<li><b>"Applicable Law"</b> means all laws of India applicable to the Service, including the Information Technology Act, 2000, the Digital Personal Data Protection Act, 2023, and the Consumer Protection Act, 2019.</li>
+<li><b>"Intellectual Property"</b> means all patents, copyrights, trademarks, trade secrets, designs, and other proprietary rights.</li>
+</ul>
+
+<h3>3. Eligibility and Account Registration</h3>
+<h4>3.1 Age and Capacity</h4>
+<p>You represent and warrant that you are at least 18 years of age and competent to enter into a binding contract under the Indian Contract Act, 1872. The Service is not intended for and may not be used by persons under 18. We do not knowingly permit minors to register. If we learn that a minor has created an Account, we may suspend or delete it.</p>
+<h4>3.2 Accurate Information</h4>
+<p>You agree to provide accurate, current, and complete information during registration and to keep it updated. You are responsible for maintaining the confidentiality of your login credentials and for all activity occurring under your Account. You must notify us immediately of any unauthorised use or security breach. We are not liable for any loss arising from your failure to safeguard your credentials.</p>
+
+<h3>4. Grant of License and Acceptable Use</h3>
+<h4>4.1 Limited License</h4>
+<p>Subject to your compliance with these Terms, we grant you a limited, non-exclusive, non-transferable, non-sublicensable, revocable license to access and use the Service for your personal, non-commercial fitness tracking and health-monitoring purposes only.</p>
+<h4>4.2 Restrictions</h4>
+<p>You shall not, and shall not permit any third party to:</p>
+<ul>
+<li>Copy, modify, adapt, translate, or create derivative works of the App or Service;</li>
+<li>Reverse engineer, decompile, disassemble, or attempt to derive source code, except where prohibited by Applicable Law;</li>
+<li>Rent, lease, lend, sell, sublicense, or commercially exploit the Service;</li>
+<li>Use any robot, scraper, crawler, or automated means to access or extract data from the Service;</li>
+<li>Circumvent, disable, or interfere with security or access-control features;</li>
+<li>Upload viruses, malware, or any harmful or disruptive code;</li>
+<li>Use the Service to harass, threaten, defame, stalk, or harm any person;</li>
+<li>Impersonate any person or entity or misrepresent your affiliation;</li>
+<li>Use the Service in violation of any Applicable Law or third-party right.</li>
+</ul>
+<p>We may investigate and take appropriate action, including suspension or termination, against any suspected violation, and may cooperate with law-enforcement authorities.</p>
+
+<h3>5. Subscriptions, Billing, and Refunds</h3>
+<h4>5.1 Plans and Fees</h4>
+<p>We offer free and paid Subscriptions. Applicable fees, billing cycles, and features are displayed at the point of purchase. All fees are quoted in Indian Rupees and are inclusive of applicable taxes unless stated otherwise.</p>
+<h4>5.2 Authorisation and Auto-Renewal</h4>
+<p>By purchasing a paid Subscription, you authorise us and our payment processors to charge your chosen payment method on a recurring basis. Paid Subscriptions renew automatically at the end of each billing cycle at the then-current price unless you cancel before the renewal date. We will provide renewal reminders and notice as required by Applicable Law and the relevant app-store or payment-network rules.</p>
+<h4>5.3 Cancellation</h4>
+<p>You may cancel auto-renewal at any time through your Account settings or the relevant app store. Cancellation takes effect at the end of the current billing period; you retain access until then. Where your Subscription is purchased through a third-party app store, cancellation and refunds may be governed by that store's policies.</p>
+<h4>5.4 Refunds</h4>
+<p>Except where required by Applicable Law or expressly stated, fees are non-refundable. Where a refund is required by law or granted at our discretion, it will be processed to the original payment method within a reasonable period. We reserve the right to refuse refunds for suspected fraud or abuse.</p>
+<h4>5.5 Price Changes and Failed Payments</h4>
+<p>We may change Subscription prices on prospective notice of at least thirty (30) days. If a payment fails or a chargeback is initiated without valid grounds, we may suspend or downgrade your Account until resolved.</p>
+
+<h3>6. User Content and Licence to Us</h3>
+<p>You retain ownership of your User Content. You grant sayset.fit a worldwide, non-exclusive, royalty-free, sublicensable licence to host, store, reproduce, process, adapt, and display your User Content solely to operate, provide, secure, and improve the Service. You also grant us the right to create and use de-identified, anonymised, and aggregated data derived from your User Content for analytics, research, and service improvement; such anonymised data does not identify you. You represent that you own or have all rights necessary to your User Content and that it does not infringe any third-party rights or violate Applicable Law. We may, but are not obligated to, review, screen, or remove User Content we reasonably believe violates these Terms or Applicable Law.</p>
+
+<h3>7. Voice Data and Sensitive Personal Information</h3>
+<p>The Service includes a voice-logging feature that records your spoken input and processes it (including via third-party processors) to convert speech to text for workout logging. By using this feature, you provide your explicit, informed consent under the Digital Personal Data Protection Act, 2023 to such recording and processing. You may withdraw consent at any time by disabling the feature; withdrawal does not affect processing carried out before withdrawal. Health-related data, body metrics, and voice input may constitute sensitive personal information, governed by our Privacy Policy.</p>
+
+<h3>8. Intellectual Property</h3>
+<p>The Service, including all software, design, text, graphics, logos, algorithms, and functionality, and all Intellectual Property therein, is owned by or licensed to sayset.fit and protected by Indian and international laws. Except for the limited license in Section 4, no rights are granted to you. You shall not remove or alter any proprietary notices, nor use our trademarks or branding without our prior written consent.</p>
+
+<h3>9. Health Disclaimer and Assumption of Risk</h3>
+<p>THE SERVICE IS A FITNESS-TRACKING AND INFORMATIONAL TOOL ONLY. IT DOES NOT PROVIDE MEDICAL ADVICE, DIAGNOSIS, OR TREATMENT AND IS NOT A SUBSTITUTE FOR PROFESSIONAL MEDICAL CARE. You acknowledge and agree that:</p>
+<ul>
+<li>You should consult a qualified physician before beginning, modifying, or discontinuing any exercise, fitness, or nutrition programme, particularly if you have any pre-existing condition, injury, or are pregnant;</li>
+<li>Any information, metrics, calculations (including BMI), suggestions, or progress data are general in nature and may be inaccurate or incomplete;</li>
+<li>Physical exercise carries inherent risks, including serious injury, disability, or death, and you VOLUNTARILY ASSUME ALL SUCH RISKS arising from your fitness activities and use of the Service;</li>
+<li>You are solely responsible for evaluating your own fitness and for any decisions you take based on the Service;</li>
+<li>To the maximum extent permitted by Applicable Law, sayset.fit shall not be liable for any injury, harm, or health complication arising from your fitness activities or use of the Service.</li>
+</ul>
+
+<h3>10. Warranties Disclaimer</h3>
+<p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, AND NON-INFRINGEMENT. We do not warrant that the Service will be uninterrupted, error-free, or secure. You use the Service at your own risk.</p>
+
+<h3>11. Limitation of Liability</h3>
+<p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL SAYSET.FIT OR ITS FOUNDERS, DIRECTORS, OFFICERS, EMPLOYEES, OR AGENTS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, DATA, GOODWILL, OR BUSINESS, ARISING OUT OF OR RELATED TO THE SERVICE.</p>
+<p>OUR TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID US FOR THE SUBSCRIPTION IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR (B) INR 1,000. Nothing excludes liability that cannot be excluded under Applicable Law, including for fraud, wilful misconduct, or death or personal injury caused by our gross negligence.</p>
+
+<h3>12. Indemnification</h3>
+<p>You agree to indemnify, defend, and hold harmless sayset.fit and its founders, directors, officers, employees, and agents from any claims, losses, liabilities, damages, costs, and expenses (including reasonable legal fees) arising out of: (a) your use or misuse of the Service; (b) your User Content; (c) your breach of these Terms; (d) your violation of any Applicable Law or third-party right; or (e) any fitness activity undertaken by you. This obligation survives termination.</p>
+
+<h3>13. Suspension and Termination</h3>
+<p>You may stop using the Service and delete your Account at any time. We may suspend or terminate your access, with or without notice, if you breach these Terms or Applicable Law, engage in fraudulent or abusive conduct, create legal risk for us, or if your Account remains inactive for a prolonged period. Upon termination, your license ends and we may delete or de-identify your data in accordance with our Privacy Policy and Applicable Law, subject to legal retention obligations. Termination does not entitle you to a refund except as required by law.</p>
+
+<h3>14. Modifications to the Service</h3>
+<p>We may modify, suspend, update, or discontinue the Service or any feature at any time, with or without notice. We will use reasonable efforts to notify you of material adverse changes and are not liable for any modification, suspension, or discontinuation.</p>
+
+<h3>15. Changes to These Terms</h3>
+<p>We may revise these Terms from time to time. Material changes will be notified through the App or by email at least thirty (30) days before they take effect, unless a shorter period is required by law. Your continued use after the effective date constitutes acceptance. If you do not agree, you must stop using the Service.</p>
+
+<h3>16. Governing Law and Jurisdiction</h3>
+<p>These Terms are governed by the laws of India, without regard to conflict-of-law principles. Subject to Section 17, the courts at Mumbai, Maharashtra, India shall have exclusive jurisdiction over any matter arising out of or relating to these Terms or the Service.</p>
+
+<h3>17. Dispute Resolution and Arbitration</h3>
+<p>Before initiating any formal proceeding, you agree to first contact us at grievance@sayset.fit with a written description of the dispute; the parties will attempt in good faith to resolve it within thirty (30) days. If unresolved, the dispute shall be finally resolved by arbitration under the Arbitration and Conciliation Act, 1996, by a sole arbitrator appointed by the Company, seated at Mumbai, India, in English; the award shall be final and binding. Nothing in this Section limits any non-waivable right to approach a consumer dispute redressal forum under the Consumer Protection Act, 2019, or to seek urgent interim relief from a competent court.</p>
+
+<h3>18. Force Majeure</h3>
+<p>We shall not be liable for any failure or delay caused by events beyond our reasonable control, including acts of God, natural disasters, epidemics or pandemics, war, civil unrest, government action, power or internet failures, or failures of third-party service providers.</p>
+
+<h3>19. General Provisions</h3>
+<p>These Terms, together with the Privacy Policy and any plan-specific or in-app terms, constitute the entire agreement and supersede all prior agreements; in case of conflict regarding personal-data handling, the Privacy Policy prevails. If any provision is held invalid, it shall be modified or severed and the remainder shall remain in effect. Our failure to enforce any provision is not a waiver. You may not assign these Terms without our consent; we may assign them in connection with a merger, acquisition, or sale of assets. Provisions concerning User Content licences, intellectual property, disclaimers, limitation of liability, indemnification, and dispute resolution survive termination. Any feedback you provide may be used freely. To the extent permitted by law, any claim must be brought within one (1) year after the cause of action arises.</p>
+
+<h3>20. Compliance with Laws</h3>
+<p>You agree to use the Service in compliance with all Applicable Law, including the Information Technology Act, 2000; the Digital Personal Data Protection Act, 2023; the Consumer Protection Act, 2019; and applicable commercial-communication and anti-spam regulations.</p>
+
+<h3>21. Grievance Officer and Contact</h3>
+<p>In accordance with the Information Technology Act, 2000 and the Digital Personal Data Protection Act, 2023, contact details for grievances and notices are:</p>
+<ul>
+<li><b>Grievance Officer:</b> Ved Malik</li>
+<li><b>Email (Grievance):</b> dyspro16250@gmail.com</li>
+<li><b>Email (Support):</b> dyspro16250@gmail.com</li>
+<li><b>Registered Office:</b> Mumbai, India</li>
+<li><b>Jurisdiction:</b> Mumbai, Maharashtra, India</li>
+</ul>
+
+<h3>22. Acknowledgment</h3>
+<p>BY USING SAYSET.FIT, YOU ACKNOWLEDGE THAT YOU HAVE READ AND UNDERSTOOD THESE TERMS, INCLUDING THE ASSUMPTION OF RISK, LIMITATION OF LIABILITY, AND ARBITRATION PROVISIONS, AND AGREE TO BE BOUND BY THEM.</p>
+<p class="policy-foot">&copy; 2026 sayset.fit. All rights reserved.</p>
+`;
+
   (function initConsentGate(){
-    const policyEl = document.getElementById('consentPolicy');
-    if (policyEl) policyEl.innerHTML = PRIVACY_HTML;
+    const docEl = document.getElementById('consentDoc');
+    const docs = { terms: TOS_HTML, privacy: PRIVACY_HTML };
+    const showDoc = (k) => {
+      if (docEl) { docEl.innerHTML = docs[k]; docEl.scrollTop = 0; }
+      document.querySelectorAll('.doc-tab').forEach(t => t.classList.toggle('active', t.dataset.doc === k));
+    };
+    showDoc('terms');
+    document.querySelectorAll('.doc-tab').forEach(t => t.addEventListener('click', () => showDoc(t.dataset.doc)));
     const age = document.getElementById('ageCheck');
     const pp = document.getElementById('ppCheck');
     const cont = document.getElementById('consentContinue');
@@ -1033,18 +1170,22 @@
     age.addEventListener('change', sync);
     pp.addEventListener('change', sync);
     cont.addEventListener('click', () => {
-      try { localStorage.setItem('sayset_consent_v1', '1'); } catch (e) {}
+      try { localStorage.setItem('sayset_consent_v2', '1'); } catch (e) {}
       document.documentElement.classList.add('consented');
     });
   })();
 
-  (function initPrivacyModal(){
-    const link = document.getElementById('privacyLink');
+  (function initDocModal(){
     const modal = document.getElementById('privacyModal');
-    if (link) link.addEventListener('click', () => {
-      document.getElementById('privacyModalBody').innerHTML = PRIVACY_HTML;
+    const open = (title, html) => {
+      document.getElementById('docModalTitle').textContent = title;
+      document.getElementById('privacyModalBody').innerHTML = html;
       modal.classList.remove('hidden');
-    });
+    };
+    const tl = document.getElementById('termsLink');
+    const pl = document.getElementById('privacyLink');
+    if (tl) tl.addEventListener('click', () => open('Terms of Service', TOS_HTML));
+    if (pl) pl.addEventListener('click', () => open('Privacy Policy', PRIVACY_HTML));
     const close = document.getElementById('privacyClose');
     if (close) close.addEventListener('click', () => modal.classList.add('hidden'));
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
