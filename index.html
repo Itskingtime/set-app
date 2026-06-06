@@ -17,6 +17,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script>try{if(localStorage.getItem('sayset_consent_v1')==='1')document.documentElement.classList.add('consented');}catch(e){}</script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
@@ -583,9 +584,74 @@
       tbody tr { border-top:1px solid var(--line); }
       td.col-num::before { color: var(--muted); }
     }
+
+    /* ── Privacy consent gate ── */
+    #consentGate {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+      background: radial-gradient(70% 50% at 80% 10%, rgba(255,150,40,0.18), transparent 60%), linear-gradient(160deg,#15100b,#0e0b09);
+      overflow-y: auto;
+    }
+    .consented #consentGate { display: none; }
+    .consent-card {
+      width: 100%; max-width: 480px; max-height: 100%;
+      display: flex; flex-direction: column;
+      background: var(--glass); border: 1px solid var(--brd); border-radius: var(--r);
+      -webkit-backdrop-filter: blur(22px) saturate(130%); backdrop-filter: blur(22px) saturate(130%);
+      box-shadow: var(--shadow); padding: 24px;
+    }
+    .consent-logo { font-size: 2.4rem; text-align: center; }
+    .consent-title { font-size: 1.4rem; font-weight: 800; text-align: center; color: var(--ink); margin-top: 6px; }
+    .consent-sub { font-size: 0.85rem; color: var(--muted); text-align: center; margin: 6px 0 16px; line-height: 1.5; }
+    .policy-scroll {
+      flex: 1; min-height: 160px; max-height: 40vh; overflow-y: auto;
+      background: rgba(0,0,0,0.28); border: 1px solid var(--line); border-radius: 12px;
+      padding: 16px; font-size: 0.82rem; line-height: 1.55; color: var(--text);
+      -webkit-overflow-scrolling: touch;
+    }
+    .policy-scroll h2 { font-size: 1.1rem; color: var(--ink); margin-bottom: 2px; }
+    .policy-scroll h3 { font-size: 0.92rem; color: var(--accent); margin: 16px 0 6px; }
+    .policy-scroll h4 { font-size: 0.84rem; color: var(--ink); margin: 11px 0 4px; }
+    .policy-scroll p { margin-bottom: 8px; }
+    .policy-scroll ul { margin: 0 0 8px 18px; } .policy-scroll li { margin-bottom: 5px; }
+    .policy-scroll b { color: var(--ink); }
+    .policy-scroll .policy-meta, .policy-scroll .policy-foot { color: var(--muted); font-size: 0.75rem; }
+    .consent-check {
+      display: flex; align-items: flex-start; gap: 11px; margin-top: 14px;
+      font-size: 0.86rem; color: var(--text); cursor: pointer; line-height: 1.4;
+    }
+    .consent-check input { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--accent); flex-shrink: 0; }
+    .consent-check b { color: var(--ink); }
+    #consentContinue { margin-top: 18px; }
+    #consentContinue:disabled { opacity: 0.45; cursor: default; }
+    .consent-foot { font-size: 0.72rem; color: var(--muted); text-align: center; margin-top: 12px; }
   </style>
 </head>
 <body>
+
+<!-- ════════ PRIVACY CONSENT GATE ════════ -->
+<div id="consentGate">
+  <div class="consent-card">
+    <div class="consent-logo">💪</div>
+    <div class="consent-title">Welcome to SaySet</div>
+    <div class="consent-sub">Please review our Privacy Policy and confirm your age before continuing.</div>
+    <div id="consentPolicy" class="policy-scroll"></div>
+    <label class="consent-check"><input type="checkbox" id="ageCheck" /> <span>I confirm I am <b>at least 13 years old</b>.</span></label>
+    <label class="consent-check"><input type="checkbox" id="ppCheck" /> <span>I have read and accept the <b>Privacy Policy</b>.</span></label>
+    <button id="consentContinue" class="auth-btn" disabled>Accept &amp; Continue</button>
+    <div class="consent-foot">SaySet is only available to users aged 13 and older.</div>
+  </div>
+</div>
+
+<!-- Privacy policy modal (re-openable from Profile → About) -->
+<div class="modal-overlay hidden" id="privacyModal">
+  <div class="modal" style="max-width:540px">
+    <h2>Privacy Policy</h2>
+    <div id="privacyModalBody" class="policy-scroll" style="max-height:60vh"></div>
+    <div class="modal-actions"><button class="btn-primary" id="privacyClose">Close</button></div>
+  </div>
+</div>
 
 <!-- ════════ AUTH SCREEN ════════ -->
 <div id="authScreen" style="display:none">
@@ -815,6 +881,7 @@
       <p class="about-text">Complaints &amp; suggestions:<br>
         <a class="about-link" href="mailto:dyspro16250@gmail.com?subject=Set%20app%20feedback">dyspro16250@gmail.com</a>
       </p>
+      <p class="about-text"><a class="about-link" id="privacyLink" style="cursor:pointer">Privacy Policy</a></p>
       <p class="about-meta">Made by Ved Malik</p>
     </div>
 
@@ -862,6 +929,126 @@
   const SB_KEY         = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdnBpanZwZm1nc3RtZXZraGV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDMxNTksImV4cCI6MjA5NTgxOTE1OX0.pGSupt1Bq2Ao72m-f9YAm0oITZOxN31LkugcwEwACko';
 
   const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  PRIVACY POLICY + CONSENT GATE (must accept before using the app)
+  // ════════════════════════════════════════════════════════════════════════
+  const PRIVACY_HTML = `
+<h2>Privacy Policy</h2>
+<p class="policy-meta">sayset.fit &middot; Last Updated: 6 June 2026</p>
+
+<h3>1. Introduction</h3>
+<p>Sayset.fit ("we," "us," "our," or "Company") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our fitness tracking application (the "App") and associated services. This policy complies with Indian data protection laws, including the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011, and applicable provisions under the Information Technology Act, 2000.</p>
+<p>Our registered office is located in India, and we are governed by Indian data protection regulations.</p>
+
+<h3>2. Information We Collect</h3>
+<h4>2.1 Personal Information</h4>
+<p>We collect personally identifiable information that you provide directly, including:</p>
+<ul>
+<li><b>Account Registration Data:</b> Name, email address, phone number, date of birth, gender, and password</li>
+<li><b>Health &amp; Fitness Information:</b> Weight, height, body measurements, fitness goals, workout history, exercise details, sets, repetitions, weights lifted, and muscle groups trained</li>
+<li><b>Audio Data:</b> Voice recordings of your workout descriptions (used only for speech-to-text processing, not stored permanently)</li>
+<li><b>BMI &amp; Body Metrics:</b> Calculated body mass index and other personal health metrics</li>
+<li><b>Profile Information:</b> Profile picture, dietary preferences, and fitness preferences</li>
+</ul>
+<h4>2.2 Automatically Collected Information</h4>
+<p>We automatically collect certain information about your device and usage patterns:</p>
+<ul>
+<li><b>Device Information:</b> Device type, operating system, unique device identifiers, mobile network information</li>
+<li><b>Usage Data:</b> App features accessed, duration of use, workouts logged, progress viewed</li>
+<li><b>Location Information:</b> Approximate location based on IP address (if location services are enabled)</li>
+<li><b>Cookies &amp; Similar Technologies:</b> We use cookies and analytics tools to understand user behavior</li>
+</ul>
+
+<h3>3. How We Use Your Information</h3>
+<p>We use the information we collect for the following purposes:</p>
+<ul>
+<li><b>Service Provision:</b> Creating and maintaining your account, logging workouts, tracking progress, and generating fitness analytics</li>
+<li><b>Voice Processing:</b> Converting voice recordings to text for workout logging (temporary processing only)</li>
+<li><b>Personalization:</b> Providing personalized recommendations and tailored fitness insights</li>
+<li><b>Communication:</b> Sending service updates, newsletters, promotional content, and responding to inquiries</li>
+<li><b>Analytics &amp; Improvement:</b> Understanding user behavior to enhance App features, fix bugs, and improve user experience</li>
+<li><b>Legal Compliance:</b> Complying with legal obligations, preventing fraud, and protecting user security</li>
+<li><b>Aggregated Analytics:</b> Creating anonymized and aggregated reports for research and analytics</li>
+</ul>
+
+<h3>4. Sharing of Information</h3>
+<h4>4.1 Third-Party Service Providers</h4>
+<p>We may share your information with trusted third-party service providers who assist us in operating our App and conducting our business, including:</p>
+<ul>
+<li><b>Cloud Hosting Providers:</b> For secure data storage and infrastructure</li>
+<li><b>Payment Processors:</b> For processing subscription and in-app purchases</li>
+<li><b>Analytics Services:</b> For understanding usage patterns (anonymized data)</li>
+<li><b>Communication Services:</b> For sending emails and notifications</li>
+</ul>
+<h4>4.2 Legal Requirements</h4>
+<p>We may disclose your information if required to do so by law or if we believe in good faith that such disclosure is necessary to comply with legal processes, protect our rights, prevent wrongdoing, or protect the personal safety of our users or the public.</p>
+<h4>4.3 No Sale of Personal Information</h4>
+<p>We do NOT sell, trade, or rent your personal information to third parties for their marketing purposes. Any sharing is strictly limited to service providers operating under confidentiality agreements and bound by similar privacy standards.</p>
+
+<h3>5. Data Security</h3>
+<p>We implement reasonable and appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction, including data encryption in transit and at rest, secure servers with restricted access, regular security audits, need-to-know access controls, and secure password hashing.</p>
+<p>However, no method of transmission over the internet or electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal information, we cannot guarantee absolute security. You are responsible for maintaining the confidentiality of your account credentials.</p>
+
+<h3>6. Your Rights</h3>
+<p>Under Indian data protection laws, you have the right to access, correct, and delete your personal information; to withdraw consent; to request data portability; and to opt out of marketing communications and non-essential processing. To exercise any of these rights, please contact us using the details in Section 12.</p>
+
+<h3>7. Data Retention</h3>
+<p>We retain your personal information for as long as your account is active or as needed to provide our services. You can request deletion of your account and associated data at any time. Voice recordings are deleted immediately after transcription. Transaction records may be retained as required by legal and financial compliance (typically 7 years). We may retain aggregated, anonymized data without time limits.</p>
+
+<h3>8. Children's Privacy</h3>
+<p>Our App is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13 years of age. If we become aware that a child under 13 has provided us with personal information, we will take steps to delete such information and terminate the child's account. If you believe we have collected information from a child under 13, please contact us immediately at the details provided in Section 12.</p>
+
+<h3>9. Cookies and Similar Technologies</h3>
+<p>Our App uses session cookies, persistent cookies, and analytics cookies to enhance your experience and improve our services. You can control cookie preferences through your device settings, though some features may not function properly without cookies.</p>
+
+<h3>10. Third-Party Links</h3>
+<p>Our App may contain links to third-party websites and services. This Privacy Policy does not apply to those external sites, and we are not responsible for their privacy practices. We encourage you to review their privacy policies before providing personal information.</p>
+
+<h3>11. Changes to This Privacy Policy</h3>
+<p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy in the App or by email at least 30 days before the changes take effect. Your continued use of the App after the revised policy is posted means you accept the changes.</p>
+
+<h3>12. Contact Us</h3>
+<p>If you have questions, concerns, or requests regarding this Privacy Policy or your personal information, please contact us at:</p>
+<ul>
+<li><b>Email:</b> privacy@sayset.fit</li>
+<li><b>Support:</b> support@sayset.fit</li>
+<li><b>Grievance Redressal:</b> grievance@sayset.fit</li>
+</ul>
+<p>We typically respond to privacy inquiries within 7-10 business days. For data access requests, please allow up to 30 days.</p>
+
+<h3>13. Regulatory Compliance</h3>
+<p>This Privacy Policy has been prepared in compliance with the Information Technology Act, 2000, the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011, and all applicable Indian data protection regulations. By using sayset.fit, you acknowledge that you have read, understood, and agree to be bound by this Privacy Policy.</p>
+<p class="policy-foot">&copy; 2026 sayset.fit. All rights reserved.</p>
+`;
+
+  (function initConsentGate(){
+    const policyEl = document.getElementById('consentPolicy');
+    if (policyEl) policyEl.innerHTML = PRIVACY_HTML;
+    const age = document.getElementById('ageCheck');
+    const pp = document.getElementById('ppCheck');
+    const cont = document.getElementById('consentContinue');
+    if (!cont) return;
+    const sync = () => { cont.disabled = !(age.checked && pp.checked); };
+    age.addEventListener('change', sync);
+    pp.addEventListener('change', sync);
+    cont.addEventListener('click', () => {
+      try { localStorage.setItem('sayset_consent_v1', '1'); } catch (e) {}
+      document.documentElement.classList.add('consented');
+    });
+  })();
+
+  (function initPrivacyModal(){
+    const link = document.getElementById('privacyLink');
+    const modal = document.getElementById('privacyModal');
+    if (link) link.addEventListener('click', () => {
+      document.getElementById('privacyModalBody').innerHTML = PRIVACY_HTML;
+      modal.classList.remove('hidden');
+    });
+    const close = document.getElementById('privacyClose');
+    if (close) close.addEventListener('click', () => modal.classList.add('hidden'));
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+  })();
 
   // ── DB helpers (RLS auto-scopes every query to the logged-in user) ─────────
   async function dbGetAll() {
