@@ -630,6 +630,29 @@
     .doc-tab { flex: 1; padding: 8px 6px; border-radius: 9px; border: 1px solid var(--brd); background: var(--glass2); color: var(--muted); font-size: 0.76rem; font-weight: 700; cursor: pointer; touch-action: manipulation; }
     .doc-tab.active { background: var(--gradb); color: #2e2000; border-color: transparent; }
     .policy-scroll .tos-warn { background: rgba(255,176,32,0.12); border: 1px solid rgba(255,176,32,0.3); border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: #ffd877; font-weight: 600; line-height: 1.5; }
+
+    /* ── Targeted-muscle chips next to logs ── */
+    .ex-muscles { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; cursor: pointer; }
+    .ex-musc { font-size: 0.62rem; padding: 2px 8px; border-radius: 20px; background: rgba(255,176,32,0.14); color: #ffcf7a; font-weight: 600; white-space: nowrap; }
+    .ex-musc.map { background: rgba(255,255,255,0.08); color: var(--muted); }
+
+    /* ── Exercise picker dropdown ── */
+    .ex-picker { position: relative; }
+    .ex-results { position: absolute; left: 0; right: 0; top: 100%; margin-top: 4px; z-index: 30; max-height: 240px; overflow-y: auto; background: #1c1610; border: 1px solid var(--brd); border-radius: 10px; box-shadow: var(--shadow); display: none; }
+    .ex-results.show { display: block; }
+    .ex-opt { padding: 10px 12px; font-size: 0.85rem; cursor: pointer; border-top: 1px solid var(--line); color: var(--text); }
+    .ex-opt:first-child { border-top: none; }
+    .ex-opt:hover, .ex-opt:active { background: rgba(255,255,255,0.06); color: var(--ink); }
+    .ex-opt small { color: var(--muted); }
+
+    /* ── Body-map (anatomy) modal ── */
+    .mm-figs { display: flex; gap: 8px; justify-content: center; background: rgba(0,0,0,0.28); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 14px;
+      --muscle-body: rgba(255,255,255,0.13); --muscle-line: rgba(255,255,255,0.28); --muscle-primary: #ff5e5e; --muscle-secondary: #ffb020; }
+    .mm-fig { flex: 1; min-width: 0; } .mm-fig svg { width: 100%; height: auto; max-height: 44vh; display: block; }
+    .mm-muscles { font-size: 0.85rem; color: var(--text); display: flex; flex-direction: column; gap: 8px; }
+    .mm-row { line-height: 1.5; } .mm-row b { color: var(--ink); }
+    .mm-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+    .mm-dot.pri { background: #ff5e5e; } .mm-dot.sec { background: #ffb020; }
   </style>
 </head>
 <body>
@@ -649,6 +672,20 @@
     <label class="consent-check"><input type="checkbox" id="ppCheck" /> <span>I have read and accept the <b>Terms of Service</b> and <b>Privacy Policy</b>.</span></label>
     <button id="consentContinue" class="auth-btn" disabled>Accept &amp; Continue</button>
     <div class="consent-foot">SaySet is only available to users aged 18 and older.</div>
+  </div>
+</div>
+
+<!-- Body-map / targeted-muscle modal -->
+<div class="modal-overlay hidden" id="muscleMapModal">
+  <div class="modal" style="max-width:560px">
+    <h2 id="mmTitle">Muscles worked</h2>
+    <div class="mm-figs">
+      <div id="mmFront" class="mm-fig"></div>
+      <div id="mmBack" class="mm-fig"></div>
+    </div>
+    <div id="mmMuscles" class="mm-muscles"></div>
+    <p style="font-size:0.66rem;color:var(--faint);margin-top:10px;text-align:center">Anatomy figures adapted from react-native-body-highlighter (MIT).</p>
+    <div class="modal-actions"><button class="btn-primary" id="mmClose">Close</button></div>
   </div>
 </div>
 
@@ -915,7 +952,10 @@
     <label>Date</label>
     <input type="date" id="modalDate" />
     <label>Exercise name</label>
-    <input type="text" id="modalName" placeholder="e.g. Bench Press" />
+    <div class="ex-picker">
+      <input type="text" id="modalName" placeholder="Search 400+ exercises…" autocomplete="off" />
+      <div id="exResults" class="ex-results"></div>
+    </div>
     <div class="modal-row">
       <div><label>Sets</label><input type="number" id="modalSets" placeholder="—" min="1" inputmode="numeric" /></div>
       <div><label>Reps</label><input type="number" id="modalReps" placeholder="—" min="1" inputmode="numeric" /></div>
@@ -1265,6 +1305,108 @@
     return 'other';
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  //  EXERCISE DATABASE (~400) — targeted muscles, picker, body map
+  // ════════════════════════════════════════════════════════════════════════
+  let EX_INDEX = null, exLoading = null;
+  const SVG_CACHE = { front: null, back: null };
+  const CAT_MUSCLE = {
+    Chest:'chest', Back:'back', 'Lower Back':'back', Shoulders:'shoulders', Traps:'shoulders',
+    Biceps:'arms', Triceps:'arms', Forearms:'arms', Neck:'neck', Abdominals:'core', Obliques:'core',
+    Quadriceps:'legs', Hamstrings:'legs', Glutes:'legs', Calves:'legs', 'Hip Adductors':'legs', 'Hip Abductors':'legs',
+    'Full Body':'other', 'Olympic Lifts':'other', 'Functional Training':'other', 'Plyometrics':'other', 'Cardio & Conditioning':'cardio'
+  };
+  const normEx = s => (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  const simpMusc = m => m.replace(/\s*\([^)]*\)/g,'').trim();
+
+  function loadExerciseDB(){
+    if (EX_INDEX) return Promise.resolve(EX_INDEX);
+    if (exLoading) return exLoading;
+    exLoading = fetch('/exercises.json').then(r => r.json()).then(data => {
+      const ex = data.exercises || data;
+      EX_INDEX = Object.entries(ex).map(([id, e]) => ({
+        id, name: e.name, category: e.category,
+        primary: e.primaryMuscles || [], secondary: e.secondaryMuscles || [], layers: e.layers,
+        norm: normEx(e.name), tokens: new Set(normEx(e.name).split(' '))
+      }));
+      return EX_INDEX;
+    }).catch(() => { EX_INDEX = []; return EX_INDEX; });
+    return exLoading;
+  }
+
+  function matchExercise(name){
+    if (!EX_INDEX || !EX_INDEX.length) return null;
+    const q = normEx(name); if (!q) return null;
+    let hit = EX_INDEX.find(e => e.norm === q); if (hit) return hit;        // exact
+    const qt = q.split(' ');
+    let best = null, bestExtra = 1e9;                                       // query tokens ⊆ entry tokens
+    for (const e of EX_INDEX) {
+      if (qt.every(t => e.tokens.has(t))) {
+        const extra = e.tokens.size - qt.length;
+        if (extra < bestExtra) { best = e; bestExtra = extra; }
+      }
+    }
+    if (best) return best;
+    let bestScore = 0;                                                      // jaccard fallback
+    for (const e of EX_INDEX) {
+      let inter = 0; qt.forEach(t => { if (e.tokens.has(t)) inter++; });
+      const score = inter / (qt.length + e.tokens.size - inter);
+      if (score > bestScore) { bestScore = score; best = e; }
+    }
+    return bestScore >= 0.34 ? best : null;
+  }
+
+  function muscleChipsHTML(name){
+    const e = matchExercise(name);
+    if (!e) return '';
+    const prim = [...new Set(e.primary.map(simpMusc))].slice(0, 4);
+    if (!prim.length) return '';
+    return `<div class="ex-muscles" data-ex="${(name||'').replace(/"/g,'&quot;')}">` +
+      prim.map(m => `<span class="ex-musc">${m}</span>`).join('') +
+      `<span class="ex-musc map">anatomy ▸</span></div>`;
+  }
+  function attachMmuscleClicks(container){
+    container.querySelectorAll('.ex-muscles').forEach(el =>
+      el.addEventListener('click', () => openMuscleMap(el.dataset.ex)));
+  }
+
+  async function openMuscleMap(name){
+    const e = matchExercise(name);
+    const modal = document.getElementById('muscleMapModal');
+    document.getElementById('mmTitle').textContent = e ? e.name : (name || 'Muscles');
+    if (!SVG_CACHE.front) {
+      try {
+        const [f, b] = await Promise.all([
+          fetch('/front_body.svg').then(r => r.text()),
+          fetch('/back_body.svg').then(r => r.text()),
+        ]);
+        SVG_CACHE.front = f; SVG_CACHE.back = b;
+      } catch (err) {}
+    }
+    const fEl = document.getElementById('mmFront'), bEl = document.getElementById('mmBack');
+    fEl.innerHTML = SVG_CACHE.front || ''; bEl.innerHTML = SVG_CACHE.back || '';
+    const paint = (root, layers) => {
+      if (!root || !layers) return;
+      (layers.secondary||[]).forEach(id => root.querySelector('#'+CSS.escape(id))?.classList.add('secondary'));
+      (layers.primary||[]).forEach(id => root.querySelector('#'+CSS.escape(id))?.classList.add('primary'));
+    };
+    if (e && e.layers) { paint(fEl, e.layers.front); paint(bEl, e.layers.back); }
+    const list = document.getElementById('mmMuscles');
+    if (e) {
+      const prim = [...new Set(e.primary.map(simpMusc))], sec = [...new Set(e.secondary.map(simpMusc))];
+      list.innerHTML = `<div class="mm-row"><span class="mm-dot pri"></span><b>Primary:</b> ${prim.join(', ') || '—'}</div>`
+        + `<div class="mm-row"><span class="mm-dot sec"></span><b>Secondary:</b> ${sec.join(', ') || '—'}</div>`;
+    } else {
+      list.innerHTML = `<div class="mm-row">No matching exercise found in the database for "${name}".</div>`;
+    }
+    modal.classList.remove('hidden');
+  }
+  (function initMuscleMapModal(){
+    const modal = document.getElementById('muscleMapModal');
+    document.getElementById('mmClose').addEventListener('click', () => modal.classList.add('hidden'));
+    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+  })();
+
   function todayKey() { return new Date().toISOString().slice(0, 10); }
   function formatDateLabel(dk) {
     const [y,m,d] = dk.split('-').map(Number);
@@ -1508,7 +1650,7 @@
       const isPR = prNames.has(ex.name) && ex.weight_kg != null &&
                    ex.weight_kg === Math.max(...rows.filter(r => r.name===ex.name).map(r => r.weight_kg || 0));
       return `<tr>
-        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${isPR?' <span class="pr-tag">🏆 PR</span>':''}</td>
+        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${isPR?' <span class="pr-tag">🏆 PR</span>':''}${muscleChipsHTML(ex.name)}</td>
         <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
         ${numCells(ex)}
         <td class="delete-cell col-del"><button class="delete-btn" data-id="${ex.id}">✕</button></td>
@@ -1516,6 +1658,7 @@
     }).join('');
     wrap.innerHTML = `<table><thead><tr><th>Exercise</th><th>Muscle</th><th>Sets</th><th>Reps</th><th>Weight</th><th></th></tr></thead><tbody>${tbody}</tbody></table>`;
     attachEditables(wrap);
+    attachMmuscleClicks(wrap);
     wrap.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async () => {
       btn.disabled = true;
       try { await dbDelete(btn.dataset.id); allRows = allRows.filter(r => r.id !== btn.dataset.id); renderTable(); renderRecords(); }
@@ -1545,7 +1688,7 @@
       const rows = exs.map(ex => {
         const m = ex.muscle || inferMuscle(ex.name);
         return `<tr>
-          <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}</td>
+          <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${muscleChipsHTML(ex.name)}</td>
           <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
           ${numCells(ex)}
           <td class="delete-cell col-del"><button class="delete-btn-rec" data-id="${ex.id}">✕</button></td>
@@ -1564,6 +1707,7 @@
       </div>`;
     }).join('');
     dks.forEach(dk => { const g = document.getElementById('dg-'+dk); if (g) attachEditables(g); });
+    attachMmuscleClicks(wrap);
     wrap.querySelectorAll('.delete-btn-rec').forEach(btn => btn.addEventListener('click', async () => {
       btn.disabled = true;
       try { await dbDelete(btn.dataset.id); allRows = allRows.filter(r => r.id !== btn.dataset.id); renderTable(); renderRecords(); }
@@ -1577,6 +1721,7 @@
     catch(e) { console.error(e); setStatus('⚠️ Could not load your data', false); }
     try { routines = await rtGetAll(); } catch(e) { routines = []; }   // empty until the Wave-3 SQL is run
     renderTable(); renderRecords(); renderRoutines();
+    loadExerciseDB().then(() => { renderTable(); renderRecords(); });   // fill targeted-muscle chips once DB is ready
   }
 
   document.getElementById('clearTodayBtn').addEventListener('click', async () => {
@@ -1591,6 +1736,8 @@
     document.getElementById('modalTitle').textContent = dk ? `Add exercise — ${formatDateLabel(dk).main}` : 'Add workout for a date';
     document.getElementById('modalWeightLabel').textContent = `Weight (${units})`;
     ['modalName','modalSets','modalReps','modalWeight'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('exResults').classList.remove('show');
+    loadExerciseDB();
     document.getElementById('modalOverlay').classList.remove('hidden');
     document.getElementById('modalName').focus();
   }
@@ -1603,7 +1750,9 @@
     const dk = document.getElementById('modalDate').value || todayKey();
     const num = id => document.getElementById(id).value ? +document.getElementById(id).value : null;
     const mw = num('modalWeight');
-    const ex = { user_id: currentUser.id, date: dk, name, muscle: inferMuscle(name), sets: num('modalSets'), reps: num('modalReps'), weight_kg: mw==null?null:toKg(mw) };
+    const mEx = matchExercise(name);
+    const muscle = (mEx && CAT_MUSCLE[mEx.category]) || inferMuscle(name);
+    const ex = { user_id: currentUser.id, date: dk, name, muscle, sets: num('modalSets'), reps: num('modalReps'), weight_kg: mw==null?null:toKg(mw) };
     const saveBtn = document.getElementById('modalSave');
     saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
     try {
@@ -1615,6 +1764,29 @@
     } catch(e) { alert('Failed to save: ' + e.message); }
     saveBtn.textContent = 'Add exercise'; saveBtn.disabled = false;
   });
+
+  // exercise picker dropdown (search the 400-exercise DB in the Add modal)
+  (function initExercisePicker(){
+    const input = document.getElementById('modalName');
+    const results = document.getElementById('exResults');
+    if (!input || !results) return;
+    input.addEventListener('input', () => {
+      const q = normEx(input.value);
+      if (!EX_INDEX || q.length < 2) { results.classList.remove('show'); results.innerHTML = ''; return; }
+      const qt = q.split(' ');
+      const matches = EX_INDEX.filter(e => qt.every(t => e.norm.includes(t))).slice(0, 30);
+      if (!matches.length) { results.classList.remove('show'); return; }
+      results.innerHTML = matches.map(e =>
+        `<div class="ex-opt" data-name="${e.name.replace(/"/g,'&quot;')}">${e.name} <small>· ${e.category}</small></div>`).join('');
+      results.classList.add('show');
+    });
+    results.addEventListener('click', (ev) => {
+      const opt = ev.target.closest('.ex-opt'); if (!opt) return;
+      input.value = opt.dataset.name;
+      results.classList.remove('show');
+    });
+    input.addEventListener('blur', () => setTimeout(() => results.classList.remove('show'), 150));
+  })();
 
   // ════════════════════════════════════════════════════════════════════════
   //  VOICE: MediaRecorder → Groq Whisper → Claude Haiku → Supabase
