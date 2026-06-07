@@ -1308,7 +1308,7 @@
   // ════════════════════════════════════════════════════════════════════════
   //  EXERCISE DATABASE (~400) — targeted muscles, picker, body map
   // ════════════════════════════════════════════════════════════════════════
-  let EX_INDEX = null, exLoading = null;
+  let EX_INDEX = null, EX_BY_ID = null, exLoading = null;
   const SVG_CACHE = { front: null, back: null };
   const CAT_MUSCLE = {
     Chest:'chest', Back:'back', 'Lower Back':'back', Shoulders:'shoulders', Traps:'shoulders',
@@ -1329,6 +1329,7 @@
         primary: e.primaryMuscles || [], secondary: e.secondaryMuscles || [], layers: e.layers,
         norm: normEx(e.name), tokens: new Set(normEx(e.name).split(' '))
       }));
+      EX_BY_ID = Object.fromEntries(EX_INDEX.map(e => [e.id, e]));
       return EX_INDEX;
     }).catch(() => { EX_INDEX = []; return EX_INDEX; });
     return exLoading;
@@ -1867,6 +1868,13 @@
       const exercises = data.exercises ?? [];
       if (!exercises.length) { setStatus('No exercises detected — try again', false); return; }
       exercises.forEach(ex => { if (!ex.muscle) ex.muscle = inferMuscle(ex.name); });
+
+      // use the AI's exact catalog pick: adopt the canonical name + muscle group
+      await loadExerciseDB();
+      exercises.forEach(ex => {
+        const dbe = (ex.exercise_id && EX_BY_ID) ? EX_BY_ID[ex.exercise_id] : null;
+        if (dbe) { ex.name = dbe.name; ex.muscle = CAT_MUSCLE[dbe.category] || ex.muscle; }
+      });
 
       if (confirmSave) { setStatus('Review your sets below ↓', false); showReview(exercises, text); return; }
       await commitExercises(exercises, text);

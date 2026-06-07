@@ -2,6 +2,10 @@
 // The OPENROUTER_API_KEY lives in a Vercel environment variable, never in the browser.
 // Client sends JSON: { transcript: "..." }  →  returns { exercises: [...] }
 
+const CATALOG = require('./_exercises');                       // [{id,name,category}] x400
+const CATALOG_TEXT = CATALOG.map(e => `${e.id}\t${e.name}`).join('\n');
+const VALID_IDS = new Set(CATALOG.map(e => e.id));
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
@@ -18,10 +22,12 @@ module.exports = async (req, res) => {
 The user said: "${transcript}"
 
 Extract every exercise. Return ONLY raw JSON, no markdown:
-{"exercises":[{"name":"Exercise Name","kind":"strength","muscle":"chest","sets":3,"reps":10,"weight_kg":80,"duration_min":null,"distance_km":null}]}
+{"exercises":[{"exercise_id":"CHEST_001","name":"Exercise Name","kind":"strength","muscle":"chest","sets":3,"reps":10,"weight_kg":80,"duration_min":null,"distance_km":null}]}
 
 Fields:
-- kind: "strength" (uses external weight), "bodyweight" (push-ups, pull-ups, planks, dips — no added weight), or "cardio" (running, cycling, rowing, swimming, walking, elliptical, etc.)
+- exercise_id: the EXACT id from the EXERCISE CATALOG below that best matches the movement the user performed (e.g. "incline dumbbell press" → the incline dumbbell press entry; "bench" → flat barbell bench press). Pick the most specific correct match. Use null ONLY if no catalog entry reasonably matches.
+- name: if exercise_id is set, copy that catalog entry's EXACT name; otherwise use the normalized spoken name.
+- kind: "strength" (external weight), "bodyweight" (push-ups, pull-ups, planks, dips), or "cardio" (running, cycling, rowing, swimming, walking, etc.)
 - muscle: exactly one of chest, back, legs, shoulders, arms, core, neck, cardio, other. Use "cardio" for cardio.
 - sets, reps: integers, or null if not mentioned.
 - weight_kg: number, or null (always null for bodyweight and cardio). Convert lbs to kg (divide by 2.205, round 1 decimal).
@@ -29,8 +35,11 @@ Fields:
 - distance_km: kilometers for cardio with a distance, else null. Convert miles (×1.609).
 
 Rules:
-- Normalize names (bench -> Bench Press, ohp -> Overhead Press, rdl -> Romanian Deadlift).
-- Empty array if nothing fitness-related.`;
+- Always try to set exercise_id from the catalog; null is a last resort.
+- Empty array if nothing fitness-related.
+
+EXERCISE CATALOG (id<TAB>name):
+${CATALOG_TEXT}`;
 
     const or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -59,6 +68,11 @@ Rules:
       const m = raw.match(/\{[\s\S]*\}/);
       if (m) { try { exercises = JSON.parse(m[0]).exercises ?? []; } catch (_) {} }
     }
+
+    // only trust ids that actually exist in the catalog
+    exercises = (exercises || [])
+      .filter(e => e && typeof e === 'object')
+      .map(e => ({ ...e, exercise_id: VALID_IDS.has(e.exercise_id) ? e.exercise_id : null }));
 
     res.status(200).json({ exercises });
   } catch (e) {
