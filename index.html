@@ -2389,13 +2389,29 @@
     return `Units: kg. Today is ${todayKey()}. Recent sessions (newest first):\n${lines.join('\n')}`;
   }
 
+  // Compact body-stats line the AI uses alongside the training summary.
+  function buildProfileText(){
+    const m = (currentUser && currentUser.user_metadata) || {};
+    const w = m.weight_kg, h = m.height_cm, parts = [];
+    if (w) parts.push(`weight ${(+w).toFixed(1)}kg`);
+    if (h) parts.push(`height ${h}cm`);
+    if (m.sex) parts.push(String(m.sex));
+    if (m.age) parts.push(`age ${m.age}`);
+    if (w && h){ const bmi = w / Math.pow(h/100, 2); parts.push(`BMI ${bmi.toFixed(1)} (${bmiCategory(bmi)})`); }
+    return parts.length ? parts.join(', ') : 'not provided';
+  }
+
   document.getElementById('coachBtn').addEventListener('click', async () => {
     const t = document.getElementById('coachText'), b = document.getElementById('coachBtn');
-    b.disabled = true; b.textContent = 'Thinking…'; t.textContent = 'Analyzing your recent training…';
+    b.disabled = true; b.textContent = 'Thinking…'; t.textContent = 'Analyzing your training & body stats…';
     try {
-      const res = await fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ summary: buildSummary() }) });
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ summary: buildSummary(), profile: buildProfileText(), access_token: session?.access_token }) });
       const data = await res.json();
-      t.textContent = res.ok ? (data.insight || 'No insight returned.') : ('⚠️ ' + (data.error || res.status));
+      if (res.ok) {
+        t.textContent = data.insight || 'No insight returned.';
+        if (typeof data.remaining === 'number') t.textContent += `\n\n— ${data.remaining} of 5 daily insights left.`;
+      } else { t.textContent = '⚠️ ' + (data.error || res.status); }
     } catch (e) { t.textContent = '⚠️ ' + e.message; }
     b.disabled = false; b.textContent = 'Refresh insight';
   });
@@ -2406,9 +2422,13 @@
     const ans = document.getElementById('askAnswer'), b = document.getElementById('askBtn');
     b.disabled = true; ans.textContent = 'Thinking…';
     try {
-      const res = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question: q, summary: buildSummary() }) });
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question: q, summary: buildSummary(), profile: buildProfileText(), access_token: session?.access_token }) });
       const data = await res.json();
-      ans.textContent = res.ok ? (data.answer || 'No answer.') : ('⚠️ ' + (data.error || res.status));
+      if (res.ok) {
+        ans.textContent = data.answer || 'No answer.';
+        if (typeof data.remaining === 'number') ans.textContent += `\n\n— ${data.remaining} of 5 daily questions left.`;
+      } else { ans.textContent = '⚠️ ' + (data.error || res.status); }
     } catch (e) { ans.textContent = '⚠️ ' + e.message; }
     b.disabled = false;
   }
