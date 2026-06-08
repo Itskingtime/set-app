@@ -2401,12 +2401,20 @@
     return parts.length ? parts.join(', ') : 'not provided';
   }
 
+  // Always hand the server a fresh access token; refresh if the cached session is stale/missing.
+  async function authToken(){
+    try {
+      let { data: { session } } = await sb.auth.getSession();
+      if (!session || !session.access_token) { const r = await sb.auth.refreshSession(); session = (r && r.data) ? r.data.session : null; }
+      return (session && session.access_token) || null;
+    } catch (e) { return null; }
+  }
+
   document.getElementById('coachBtn').addEventListener('click', async () => {
     const t = document.getElementById('coachText'), b = document.getElementById('coachBtn');
     b.disabled = true; b.textContent = 'Thinking…'; t.textContent = 'Analyzing your training & body stats…';
     try {
-      const { data: { session } } = await sb.auth.getSession();
-      const res = await fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ summary: buildSummary(), profile: buildProfileText(), access_token: session?.access_token }) });
+      const res = await fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ summary: buildSummary(), profile: buildProfileText(), access_token: await authToken() }) });
       const data = await res.json();
       if (res.ok) {
         t.textContent = data.insight || 'No insight returned.';
@@ -2422,8 +2430,7 @@
     const ans = document.getElementById('askAnswer'), b = document.getElementById('askBtn');
     b.disabled = true; ans.textContent = 'Thinking…';
     try {
-      const { data: { session } } = await sb.auth.getSession();
-      const res = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question: q, summary: buildSummary(), profile: buildProfileText(), access_token: session?.access_token }) });
+      const res = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question: q, summary: buildSummary(), profile: buildProfileText(), access_token: await authToken() }) });
       const data = await res.json();
       if (res.ok) {
         ans.textContent = data.answer || 'No answer.';
@@ -2640,7 +2647,18 @@
 
   // ── Register service worker (PWA / installable) ───────────────────────────
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      // When a new version installs (and an old SW was already controlling),
+      // reload once so an open app never keeps running stale code after a deploy.
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) location.reload();
+        });
+      });
+      try { reg.update(); } catch (e) {}
+    }).catch(() => {});
   }
 </script>
 </body>

@@ -1,9 +1,13 @@
 // Minimal network-first service worker — makes GymApp installable without
 // causing stale-content problems (always tries the network first).
-const CACHE = 'gymapp-v1';
+const CACHE = 'gymapp-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (e) => e.waitUntil(
+  caches.keys()
+    .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    .then(() => self.clients.claim())
+));
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
