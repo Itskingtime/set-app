@@ -3,6 +3,7 @@
 // Rate-limited to 5 AI insights per user per day (shared pool with /api/ask).
 
 const { gateAI, refundAI } = require('./_ratelimit');
+const { logUsage } = require('./_usage');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -32,7 +33,7 @@ Write a personalised weekly insight in 100 WORDS OR FEWER (plain text, no markdo
       or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'https://sayset.fit', 'X-Title': 'SaySet' },
-        body: JSON.stringify({ model: 'deepseek/deepseek-v4-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.5, max_tokens: 260 }),
+        body: JSON.stringify({ model: 'deepseek/deepseek-v4-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.5, max_tokens: 260, usage: { include: true } }),
       });
       data = await or.json();
     } catch (e) {
@@ -52,6 +53,8 @@ Write a personalised weekly insight in 100 WORDS OR FEWER (plain text, no markdo
       res.status(502).json({ error: 'The coach had nothing to add — please try again.' });
       return;
     }
+    const u = data.usage || {};
+    await logUsage({ uid: gate.uid, endpoint: '/api/coach', model: 'deepseek/deepseek-v4-flash', tokensIn: u.prompt_tokens, tokensOut: u.completion_tokens, costUsd: u.cost });
     res.status(200).json({ insight, remaining: gate.remaining });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -3,6 +3,7 @@
 // Rate-limited to 5 AI insights per user per day (shared pool with /api/coach).
 
 const { gateAI, refundAI } = require('./_ratelimit');
+const { logUsage } = require('./_usage');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -35,7 +36,7 @@ Answer in 100 WORDS OR FEWER, plain text (no markdown). Include specific numbers
       or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'https://sayset.fit', 'X-Title': 'SaySet' },
-        body: JSON.stringify({ model: 'deepseek/deepseek-v4-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 260 }),
+        body: JSON.stringify({ model: 'deepseek/deepseek-v4-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 260, usage: { include: true } }),
       });
       data = await or.json();
     } catch (e) {
@@ -55,6 +56,8 @@ Answer in 100 WORDS OR FEWER, plain text (no markdown). Include specific numbers
       res.status(502).json({ error: 'No answer came back — please try again.' });
       return;
     }
+    const u = data.usage || {};
+    await logUsage({ uid: gate.uid, endpoint: '/api/ask', model: 'deepseek/deepseek-v4-flash', tokensIn: u.prompt_tokens, tokensOut: u.completion_tokens, costUsd: u.cost });
     res.status(200).json({ answer, remaining: gate.remaining });
   } catch (e) {
     res.status(500).json({ error: e.message });

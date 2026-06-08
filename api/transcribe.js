@@ -2,6 +2,8 @@
 // The GROQ_API_KEY lives in a Vercel environment variable, never in the browser.
 // Client sends JSON: { audio: <base64>, mime: "audio/webm" }  →  returns { text }
 
+const { resolveUid, logUsage } = require('./_usage');
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
@@ -21,6 +23,7 @@ module.exports = async (req, res) => {
     fd.append('file', new Blob([buffer], { type }), `recording.${ext}`);
     fd.append('model', 'whisper-large-v3');
 
+    const uidP = resolveUid(body.access_token);   // overlap the auth lookup with transcription
     const groq = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}` },
@@ -30,6 +33,7 @@ module.exports = async (req, res) => {
     const data = await groq.json();
     if (!groq.ok) { res.status(groq.status).json({ error: data.error?.message || 'Groq error', detail: data }); return; }
 
+    await logUsage({ uid: await uidP, endpoint: '/api/transcribe', model: 'whisper-large-v3' });
     res.status(200).json({ text: data.text || '' });
   } catch (e) {
     res.status(500).json({ error: e.message });

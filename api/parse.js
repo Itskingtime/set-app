@@ -5,6 +5,7 @@
 const CATALOG = require('./_exercises');                       // [{id,name,category}] x400
 const CATALOG_TEXT = CATALOG.map(e => `${e.id}\t${e.name}`).join('\n');
 const VALID_IDS = new Set(CATALOG.map(e => e.id));
+const { resolveUid, logUsage } = require('./_usage');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -41,6 +42,7 @@ Rules:
 EXERCISE CATALOG (id<TAB>name):
 ${CATALOG_TEXT}`;
 
+    const uidP = resolveUid(body.access_token);   // overlap the auth lookup with the model call
     const or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -53,6 +55,7 @@ ${CATALOG_TEXT}`;
         model: 'deepseek/deepseek-v4-pro',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
+        usage: { include: true },
       }),
     });
 
@@ -74,6 +77,8 @@ ${CATALOG_TEXT}`;
       .filter(e => e && typeof e === 'object')
       .map(e => ({ ...e, exercise_id: VALID_IDS.has(e.exercise_id) ? e.exercise_id : null }));
 
+    const u = data.usage || {};
+    await logUsage({ uid: await uidP, endpoint: '/api/parse', model: 'deepseek/deepseek-v4-pro', tokensIn: u.prompt_tokens, tokensOut: u.completion_tokens, costUsd: u.cost });
     res.status(200).json({ exercises });
   } catch (e) {
     res.status(500).json({ error: e.message });
