@@ -9,9 +9,11 @@ const SB = 'https://xfvpijvpfmgstmevkhey.supabase.co';
 const INACTIVE_DAYS = 3;
 
 module.exports = async (req, res) => {
-  // Only let Vercel Cron (or a holder of CRON_SECRET) trigger this
+  // Require CRON_SECRET so ONLY Vercel Cron can trigger mass push sends.
+  // Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` on cron
+  // invocations once the env var is set — so this fails closed to the public.
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+  if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     res.status(401).json({ error: 'Unauthorized' }); return;
   }
 
