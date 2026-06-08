@@ -5,18 +5,23 @@
 const CATALOG = require('./_exercises');                       // [{id,name,category}] x400
 const CATALOG_TEXT = CATALOG.map(e => `${e.id}\t${e.name}`).join('\n');
 const VALID_IDS = new Set(CATALOG.map(e => e.id));
-const { resolveUid, logUsage } = require('./_usage');
+const { logUsage } = require('./_usage');
+const { gateVoice } = require('./_ratelimit');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const transcript = (body.transcript || '').trim();
+    const transcript = (body.transcript || '').slice(0, 2000).trim();   // cap input size (cost guard)
     if (!transcript) { res.status(400).json({ error: 'No transcript provided' }); return; }
 
     const key = process.env.OPENROUTER_API_KEY;
     if (!key) { res.status(500).json({ error: 'OPENROUTER_API_KEY not set on the server' }); return; }
+
+    // require a valid session + enforce a generous daily cap (anti cost-abuse)
+    const gate = await gateVoice(body.access_token);
+    if (!gate.ok) { res.status(gate.status).json({ error: gate.error }); return; }
 
     const prompt = `You are a fitness workout parser and exercise expert.
 
@@ -42,7 +47,6 @@ Rules:
 EXERCISE CATALOG (id<TAB>name):
 ${CATALOG_TEXT}`;
 
-    const uidP = resolveUid(body.access_token);   // overlap the auth lookup with the model call
     const or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -78,7 +82,7 @@ ${CATALOG_TEXT}`;
       .map(e => ({ ...e, exercise_id: VALID_IDS.has(e.exercise_id) ? e.exercise_id : null }));
 
     const u = data.usage || {};
-    await logUsage({ uid: await uidP, endpoint: '/api/parse', model: 'deepseek/deepseek-v4-pro', tokensIn: u.prompt_tokens, tokensOut: u.completion_tokens, costUsd: u.cost });
+    await logUsage({ uid: gate.uid, endpoint: '/api/parse', model: 'deepseek/deepseek-v4-pro', tokensIn: u.prompt_tokens, tokensOut: u.completion_tokens, costUsd: u.cost });
     res.status(200).json({ exercises });
   } catch (e) {
     res.status(500).json({ error: e.message });

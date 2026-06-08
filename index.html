@@ -997,6 +997,9 @@
 
   const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
+  // HTML-escape any user-controlled value before it touches innerHTML (XSS guard).
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
   // ════════════════════════════════════════════════════════════════════════
   //  PRIVACY POLICY + CONSENT GATE (must accept before using the app)
   // ════════════════════════════════════════════════════════════════════════
@@ -1381,7 +1384,7 @@
     if (!e) return '';
     const prim = [...new Set(e.primary.map(simpMusc))].slice(0, 4);
     if (!prim.length) return '';
-    return `<div class="ex-muscles" data-ex="${(name||'').replace(/"/g,'&quot;')}">` +
+    return `<div class="ex-muscles" data-ex="${esc(name)}">` +
       prim.map(m => `<span class="ex-musc">${m}</span>`).join('') +
       `<span class="ex-musc map">anatomy ▸</span></div>`;
   }
@@ -1417,7 +1420,7 @@
       list.innerHTML = `<div class="mm-row"><span class="mm-dot pri"></span><b>Primary:</b> ${prim.join(', ') || '—'}</div>`
         + `<div class="mm-row"><span class="mm-dot sec"></span><b>Secondary:</b> ${sec.join(', ') || '—'}</div>`;
     } else {
-      list.innerHTML = `<div class="mm-row">No matching exercise found in the database for "${name}".</div>`;
+      list.innerHTML = `<div class="mm-row">No matching exercise found in the database for "${esc(name)}".</div>`;
     }
     modal.classList.remove('hidden');
   }
@@ -1672,7 +1675,7 @@
       const isPR = prNames.has(ex.name) && ex.weight_kg != null &&
                    ex.weight_kg === Math.max(...rows.filter(r => r.name===ex.name).map(r => r.weight_kg || 0));
       return `<tr>
-        <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${isPR?' <span class="pr-tag">🏆 PR</span>':''}${muscleChipsHTML(ex.name)}</td>
+        <td class="col-name" data-label="Exercise"><span class="ex-name">${esc(ex.name)}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${isPR?' <span class="pr-tag">🏆 PR</span>':''}${muscleChipsHTML(ex.name)}</td>
         <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
         ${numCells(ex)}
         <td class="delete-cell col-del"><button class="delete-btn" data-id="${ex.id}">✕</button></td>
@@ -1693,10 +1696,10 @@
     if (!sessionLog.length) { box.innerHTML = '<div class="empty">No entries this session</div>'; return; }
     box.innerHTML = sessionLog.slice().reverse().map(en => `
       <div class="log-row"><span class="log-time">${en.time}</span>
-      <span class="log-text">"${en.transcript}" → ${en.exercises.map(e =>
+      <span class="log-text">"${esc(en.transcript)}" → ${en.exercises.map(e =>
         e.kind==='cardio'
-          ? `<b>${e.name}</b>${e.duration_min?' '+e.duration_min+'min':''}${e.distance_km!=null?' '+e.distance_km+'km':''}`
-          : `<b>${e.name}</b>${e.sets?' '+e.sets+'×':''}${e.reps?e.reps+' reps':''}${e.weight_kg!=null?' '+dispW(e.weight_kg)+units:''}`).join(', ')}</span></div>`).join('');
+          ? `<b>${esc(e.name)}</b>${e.duration_min?' '+e.duration_min+'min':''}${e.distance_km!=null?' '+e.distance_km+'km':''}`
+          : `<b>${esc(e.name)}</b>${e.sets?' '+e.sets+'×':''}${e.reps?e.reps+' reps':''}${e.weight_kg!=null?' '+dispW(e.weight_kg)+units:''}`).join(', ')}</span></div>`).join('');
   }
 
   function renderRecords() {
@@ -1710,7 +1713,7 @@
       const rows = exs.map(ex => {
         const m = ex.muscle || inferMuscle(ex.name);
         return `<tr>
-          <td class="col-name" data-label="Exercise"><span class="ex-name">${ex.name}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${muscleChipsHTML(ex.name)}</td>
+          <td class="col-name" data-label="Exercise"><span class="ex-name">${esc(ex.name)}</span>${ex.kind==='bodyweight'?' <span class="kind-tag">BW</span>':''}${muscleChipsHTML(ex.name)}</td>
           <td class="col-muscle" data-label="Muscle"><span class="muscle-badge badge-${m}">${m}</span></td>
           ${numCells(ex)}
           <td class="delete-cell col-del"><button class="delete-btn-rec" data-id="${ex.id}">✕</button></td>
@@ -1935,7 +1938,7 @@
       <div class="rev-list">
         ${exercises.map(ex => `
           <div class="rev-item">
-            <input class="rev-name" value="${(ex.name||'').replace(/"/g,'&quot;')}" placeholder="Exercise">
+            <input class="rev-name" value="${esc(ex.name)}" placeholder="Exercise">
             <div class="rev-nums">
               <input class="rev-f" data-f="sets" type="number" inputmode="numeric" placeholder="sets" value="${ex.sets??''}">
               <input class="rev-f" data-f="reps" type="number" inputmode="numeric" placeholder="reps" value="${ex.reps??''}">
@@ -1981,7 +1984,7 @@
     if (!el) return;
     if (!items || !items.length) { el.innerHTML = ''; return; }
     el.innerHTML = items.map(it =>
-      `<div class="fb-row ${it.pr?'pr':''}">${it.pr?'🎉 ':'• '}<b>${it.name}</b> — ${it.text}</div>`).join('');
+      `<div class="fb-row ${it.pr?'pr':''}">${it.pr?'🎉 ':'• '}<b>${esc(it.name)}</b> — ${esc(it.text)}</div>`).join('');
   }
 
   // ── Weekly streak strip ──
@@ -2487,8 +2490,8 @@
     const users = d.users || [];
     const rows = users.map(u => {
       const joined = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
-      const body = [u.sex || '', u.age ? ('age ' + u.age) : '', u.weight_kg ? (u.weight_kg + 'kg') : '', u.height_cm ? (u.height_cm + 'cm') : ''].filter(Boolean).join(' · ') || '—';
-      return `<tr><td style="padding:6px 8px;white-space:nowrap">${u.email || '—'}</td><td style="padding:6px 8px">${joined}</td><td style="padding:6px 8px;color:var(--muted,#999)">${body}</td><td style="padding:6px 8px;text-align:right">${fmtNum(u.workouts)}</td><td style="padding:6px 8px;text-align:right">${fmtNum(u.ai_calls)}</td><td style="padding:6px 8px;text-align:right">${fmtUsd(u.spend)}</td></tr>`;
+      const body = esc([u.sex || '', u.age ? ('age ' + u.age) : '', u.weight_kg ? (u.weight_kg + 'kg') : '', u.height_cm ? (u.height_cm + 'cm') : ''].filter(Boolean).join(' · ') || '—');
+      return `<tr><td style="padding:6px 8px;white-space:nowrap">${esc(u.email || '—')}</td><td style="padding:6px 8px">${joined}</td><td style="padding:6px 8px;color:var(--muted,#999)">${body}</td><td style="padding:6px 8px;text-align:right">${fmtNum(u.workouts)}</td><td style="padding:6px 8px;text-align:right">${fmtNum(u.ai_calls)}</td><td style="padding:6px 8px;text-align:right">${fmtUsd(u.spend)}</td></tr>`;
     }).join('');
     document.getElementById('adminUsers').innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.82rem"><thead><tr style="color:var(--muted,#888);text-align:left;border-bottom:1px solid var(--brd,#2a2a2a)"><th style="padding:6px 8px">Email</th><th style="padding:6px 8px">Joined</th><th style="padding:6px 8px">Body</th><th style="padding:6px 8px;text-align:right">Wk</th><th style="padding:6px 8px;text-align:right">AI</th><th style="padding:6px 8px;text-align:right">Spend</th></tr></thead><tbody>${rows || '<tr><td colspan="6" style="padding:10px;color:#666">No users yet.</td></tr>'}</tbody></table>`;
   }
@@ -2614,7 +2617,7 @@
     if (!routines.length){ wrap.innerHTML = '<div class="empty">No routines yet — save a workout to reuse it.</div>'; return; }
     wrap.innerHTML = routines.map(rt => `
       <div class="routine-row">
-        <div class="routine-info"><b>${(rt.name||'').replace(/</g,'&lt;')}</b><span>${(rt.items||[]).length} exercise${(rt.items||[]).length!==1?'s':''}</span></div>
+        <div class="routine-info"><b>${esc(rt.name)}</b><span>${(rt.items||[]).length} exercise${(rt.items||[]).length!==1?'s':''}</span></div>
         <div class="routine-actions">
           <button class="btn-sm" data-log="${rt.id}">Log</button>
           <button class="btn-sm danger" data-del="${rt.id}">✕</button>
@@ -2636,7 +2639,7 @@
     const rt = routines.find(r => r.id === id); if (!rt) return;
     const rows = (rt.items||[]).map(it => ({ user_id:currentUser.id, date:todayKey(), name:it.name, muscle:it.muscle||inferMuscle(it.name), kind:it.kind||'strength', sets:it.sets, reps:it.reps, weight_kg:it.weight_kg, duration_min:it.duration_min??null, distance_km:it.distance_km??null }));
     if (!rows.length) return;
-    try { await dbInsert(rows); allRows = await dbGetAll(); renderTable(); renderRecords(); setStatus(`✓ Logged routine "${rt.name}"`, false); }
+    try { await dbInsert(rows); allRows = await dbGetAll(); renderTable(); renderRecords(); setStatus(`✓ Logged routine "${esc(rt.name)}"`, false); }
     catch(e){ alert('Could not log routine: ' + e.message); }
   }
   async function delRoutine(id){
