@@ -21,6 +21,14 @@ create index if not exists api_usage_user_idx    on public.api_usage(user_id);
 alter table public.api_usage enable row level security;
 -- No anon/authenticated policies: only the server (service role) writes/reads this.
 
+-- signup_usage may also be created by supabase_signup_limit.sql; ensure it exists
+-- here too so the overview function below can always reference it.
+create table if not exists public.signup_usage (
+  ip text not null, day text not null, cnt int not null default 0,
+  primary key (ip, day)
+);
+alter table public.signup_usage enable row level security;
+
 -- One JSON blob with everything the owner dashboard needs.
 -- SECURITY DEFINER so it can read auth.users; locked to the service role below.
 create or replace function public.get_admin_overview()
@@ -42,6 +50,13 @@ as $$
     'tokens_in_30d',  coalesce((select sum(tokens_in)  from public.api_usage where created_at > now() - interval '30 days'), 0),
     'tokens_out_30d', coalesce((select sum(tokens_out) from public.api_usage where created_at > now() - interval '30 days'), 0),
     'calls_30d',      (select count(*) from public.api_usage where created_at > now() - interval '30 days'),
+    'signups_today',  coalesce((select sum(cnt) from public.signup_usage where day = current_date::text), 0),
+    'signups_7d',     coalesce((select sum(cnt) from public.signup_usage where day::date >= current_date - 6), 0),
+    'signups_30d',    coalesce((select sum(cnt) from public.signup_usage where day::date >= current_date - 29), 0),
+    'top_signup_ips', coalesce((
+        select jsonb_agg(jsonb_build_object('ip', ip, 'cnt', c) order by c desc)
+        from (select ip, sum(cnt) c from public.signup_usage
+              where day::date >= current_date - 29 group by ip order by c desc limit 10) t), '[]'::jsonb),
     'calls_by_endpoint', coalesce((
         select jsonb_object_agg(endpoint, c)
         from (select endpoint, count(*) c from public.api_usage

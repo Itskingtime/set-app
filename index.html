@@ -958,6 +958,9 @@
     <div class="section-header" style="margin-top:28px"><span class="section-title">By endpoint · 30 days</span></div>
     <div id="adminEndpoints" style="display:grid;gap:8px"></div>
 
+    <div class="section-header" style="margin-top:28px"><span class="section-title">Top sign-up IPs · 30 days</span></div>
+    <div id="adminSignups" style="display:grid;gap:8px"></div>
+
     <div class="section-header" style="margin-top:28px"><span class="section-title">Users</span></div>
     <div class="table-wrap" id="adminUsers" style="overflow-x:auto"></div>
   </div>
@@ -2474,6 +2477,8 @@
       statCard('Workouts', fmtNum(d.total_workouts)),
       statCard('Tokens in · 30d', fmtNum(d.tokens_in_30d)),
       statCard('Tokens out · 30d', fmtNum(d.tokens_out_30d)),
+      statCard('Sign-ups today', fmtNum(d.signups_today)),
+      statCard('Sign-ups · 7d', fmtNum(d.signups_7d)),
     ].join('');
 
     const ep = d.calls_by_endpoint || {};
@@ -2481,6 +2486,11 @@
     document.getElementById('adminEndpoints').innerHTML = epKeys.length
       ? epKeys.map(k => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--glass,#1a1a1a);border:1px solid var(--brd,#2a2a2a);border-radius:8px"><span style="color:var(--muted,#aaa)">${k}</span><b>${fmtNum(ep[k])}</b></div>`).join('')
       : '<div style="color:#666;font-size:0.85rem">No calls yet.</div>';
+
+    const ips = d.top_signup_ips || [];
+    document.getElementById('adminSignups').innerHTML = ips.length
+      ? ips.map(x => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--glass,#1a1a1a);border:1px solid var(--brd,#2a2a2a);border-radius:8px"><span style="color:var(--muted,#aaa);font-family:monospace">${esc(x.ip)}</span><b>${fmtNum(x.cnt)} sign-ups</b></div>`).join('')
+      : '<div style="color:#666;font-size:0.85rem">No sign-ups recorded yet.</div>';
 
     const days = d.cost_by_day || [];
     const spendEl = document.getElementById('adminSpend');

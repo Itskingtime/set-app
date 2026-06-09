@@ -9,9 +9,17 @@ const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const DAILY_SIGNUP_LIMIT = 5;   // new accounts allowed per IP per UTC day
 
 function clientIp(req) {
-  const xff = req.headers['x-forwarded-for'];
-  if (xff) return String(xff).split(',')[0].trim();
-  return req.headers['x-real-ip'] || (req.socket && req.socket.remoteAddress) || 'unknown';
+  // x-real-ip is set by Vercel to the TRUE client IP and is not client-spoofable.
+  // Never trust the first x-forwarded-for hop (a client can forge it to dodge the
+  // per-IP cap); only fall back to the nearest hop / socket address.
+  const h = req.headers || {};
+  let ip = h['x-real-ip'] || h['x-vercel-forwarded-for'];
+  if (!ip) {
+    const xff = h['x-forwarded-for'];
+    if (xff) { const p = String(xff).split(','); ip = p[p.length - 1]; }
+  }
+  ip = String(ip || (req.socket && req.socket.remoteAddress) || 'unknown').trim();
+  return ip.slice(0, 64);
 }
 
 module.exports = async (req, res) => {
