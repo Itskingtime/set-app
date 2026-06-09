@@ -1482,7 +1482,7 @@
     const email = authEmail.value.trim();
     const password = authPassword.value;
     if (!email || !password) { showAuthMsg('Enter your email and password.', 'error'); return; }
-    if (password.length < 6)  { showAuthMsg('Password must be at least 6 characters.', 'error'); return; }
+    if (password.length < 8)  { showAuthMsg('Password must be at least 8 characters.', 'error'); return; }
 
     authSubmit.disabled = true;
     authSubmit.textContent = mode === 'login' ? 'Logging in…' : 'Signing up…';
@@ -1494,10 +1494,16 @@
         if (error) throw error;
         // onAuthStateChange will switch to the app
       } else {
-        const { data, error } = await sb.auth.signUp({ email, password });
-        if (error) throw error;
-        if (data.session) {
-          // logged in immediately (email confirmation disabled)
+        // sign up through the rate-limited proxy (per-IP/day cap), then start the session
+        const res = await fetch('/api/signup', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Sign-up failed.');
+        if (data.access_token && data.refresh_token) {
+          await sb.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+          // onAuthStateChange will switch to the app
         } else {
           setMode('login');
           showAuthMsg('Account created! Check your email to confirm, then log in.', 'info');
