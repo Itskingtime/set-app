@@ -1183,7 +1183,7 @@
       <div class="lp-foot-col">
         <h5>Company</h5>
         <a id="lpFootAbout">About</a>
-        <a href="mailto:dyspro16250@gmail.com">Contact</a>
+        <a id="lpFootContact">Contact</a>
       </div>
       <div class="lp-foot-col">
         <h5>Connect</h5>
@@ -1196,7 +1196,7 @@
       <div class="lp-foot-legal-links">
         <a id="lpTerms">Terms</a>
         <a id="lpPrivacy">Privacy</a>
-        <a href="mailto:dyspro16250@gmail.com">Delete my data</a>
+        <a id="lpFootDelete">Delete my data</a>
       </div>
     </div>
   </footer>
@@ -2089,6 +2089,32 @@
     const openDoc = (title, html) => { $('docModalTitle').textContent = title; $('privacyModalBody').innerHTML = html; $('privacyModal').classList.remove('hidden'); };
     if ($('lpTerms'))   $('lpTerms').addEventListener('click',   () => openDoc('Terms of Service', TOS_HTML));
     if ($('lpPrivacy')) $('lpPrivacy').addEventListener('click', () => openDoc('Privacy Policy', PRIVACY_HTML));
+
+    // Contact + Delete-my-data modals (mailto: is unreliable on desktop, so we
+    // open a modal that shows the email + a one-click copy + an mail-app fallback).
+    const CONTACT_EMAIL = 'dyspro16250@gmail.com';
+    const showContact = (title, leadHtml) => {
+      openDoc(title, `${leadHtml}
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.32);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:16px 0 12px">
+          <span style="font-family:monospace;color:var(--ink);flex:1;word-break:break-all;font-size:0.92rem">${esc(CONTACT_EMAIL)}</span>
+          <button id="lpCopyEmail" type="button" style="background:var(--gradb);color:#2a1d00;border:none;padding:8px 14px;border-radius:8px;font-weight:800;font-size:0.78rem;cursor:pointer">Copy</button>
+        </div>
+        <a href="mailto:${esc(CONTACT_EMAIL)}" style="display:inline-block;background:transparent;color:var(--ink);border:1px solid var(--brd);padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:700;font-size:0.86rem">Open in mail app →</a>`);
+      const btn = $('lpCopyEmail');
+      if (btn) btn.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(CONTACT_EMAIL); btn.textContent = 'Copied ✓'; }
+        catch (e) {
+          // Fallback for older browsers / insecure contexts
+          try { const ta = document.createElement('textarea'); ta.value = CONTACT_EMAIL; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); btn.textContent = 'Copied ✓'; }
+          catch (e2) { btn.textContent = 'Select & copy'; }
+        }
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+      });
+    };
+    if ($('lpFootContact')) $('lpFootContact').addEventListener('click', () =>
+      showContact('Get in touch', '<p style="color:var(--muted);margin:0;line-height:1.6">Questions, feedback, or just want to say hi? Drop a line — Ved typically replies within 24 hours.</p>'));
+    if ($('lpFootDelete')) $('lpFootDelete').addEventListener('click', () =>
+      showContact('Delete your data', '<p style="color:var(--muted);margin:0;line-height:1.6">Already signed in? Open <b style="color:var(--ink)">Profile → Danger zone → Delete account</b> for a one-tap wipe. Without access? Email us and we\'ll handle it within 30 days under the Privacy Policy.</p>'));
 
     // ── Interactive voice/text demo ──
     const result = $('lpResult'), msg = $('lpDemoMsg'), lpMic = $('lpMic');
