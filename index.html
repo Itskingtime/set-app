@@ -801,6 +801,30 @@
     .lp-privacy-list { list-style:none; padding:0; margin:0; }
     .lp-privacy-list li { padding:7px 0; color:var(--text); font-size:0.9rem; line-height:1.5; }
 
+    /* === Founder (homely / personal) === */
+    .lp-founder-card { width:100%; max-width:860px; margin-top:40px; display:flex; gap:clamp(24px,4vw,40px); align-items:center;
+      background:linear-gradient(135deg, rgba(255,176,32,0.07), var(--glass) 60%); border:1px solid var(--brd); border-radius:22px;
+      padding:clamp(24px,4vw,38px); box-shadow:var(--shadow); }
+    @media (max-width:720px){ .lp-founder-card { flex-direction:column; gap:26px; text-align:center; } }
+    .lp-founder-photo { position:relative; flex-shrink:0; background:#f6efe4; padding:11px 11px 38px; border-radius:5px;
+      box-shadow:0 18px 44px rgba(0,0,0,0.5); transform:rotate(-3deg); transition:transform .25s ease; }
+    .lp-founder-photo:hover { transform:rotate(0deg) scale(1.02); }
+    .lp-founder-photo::before { content:''; position:absolute; top:-13px; left:50%; transform:translateX(-50%) rotate(2.5deg);
+      width:94px; height:27px; background:rgba(255,200,120,0.4); border:1px solid rgba(255,176,32,0.35); border-radius:1px; }
+    .lp-founder-photo img, .lp-founder-monogram { width:152px; height:184px; object-fit:cover; display:block; border-radius:3px; }
+    .lp-founder-monogram { display:none; align-items:center; justify-content:center; background:var(--gradb); color:#2a1d00; font-size:3.6rem; font-weight:850; }
+    .lp-founder-seal { position:absolute; bottom:9px; left:0; right:0; text-align:center; white-space:nowrap;
+      font-size:0.68rem; font-weight:800; color:#6b4f24; letter-spacing:0.02em; }
+    .lp-founder-note { flex:1; display:flex; flex-direction:column; align-items:flex-start; min-width:0; }
+    @media (max-width:720px){ .lp-founder-note { align-items:center; } }
+    .lp-recd { font-size:0.68rem; font-weight:800; letter-spacing:0.11em; text-transform:uppercase; color:var(--accent);
+      padding:6px 13px; border:1px solid rgba(255,176,32,0.32); border-radius:999px; background:rgba(255,176,32,0.06); }
+    .lp-founder-quote { font-size:clamp(1.02rem,2vw,1.2rem); color:var(--ink); line-height:1.62; font-style:italic; margin:18px 0 0; }
+    .lp-founder-sign { font-family:'Segoe Script','Bradley Hand','Snell Roundhand','Brush Script MT',cursive; font-size:1.7rem; color:var(--accent); margin-top:12px; line-height:1; }
+    .lp-founder-meta { margin-top:12px; }
+    .lp-founder-meta .lp-founder-name { color:var(--ink); font-weight:800; font-size:0.95rem; }
+    .lp-founder-meta .lp-founder-role { color:var(--faint); font-size:0.8rem; margin-top:2px; }
+
     /* === FAQ === */
     .lp-faq-list { width:100%; max-width:760px; margin-top:36px; display:flex; flex-direction:column; gap:10px; }
     .lp-faq-item { background:var(--glass); border:1px solid var(--brd); border-radius:14px; padding:0; overflow:hidden; transition:border-color .15s; }
@@ -1081,22 +1105,31 @@
 
   <!-- TRUST / FOUNDER -->
   <section class="lp-trust-section">
-    <h2>Why you can trust SaySet.</h2>
-    <div class="lp-trust-grid">
-      <div class="lp-trust-card">
-        <div class="lp-founder-row">
-          <div class="lp-founder-av">V</div>
-          <div>
-            <div class="lp-founder-name">Ved Malik</div>
-            <div class="lp-founder-role">Founder · building from Mumbai</div>
-          </div>
+    <h2>Built by someone who lifts.</h2>
+    <p>Not a faceless startup — one person who got tired of fumbling with his phone between heavy sets.</p>
+
+    <div class="lp-founder-card">
+      <div class="lp-founder-photo">
+        <img src="/founder.jpg" alt="Ved Malik, founder of SaySet" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+        <div class="lp-founder-monogram">V</div>
+        <span class="lp-founder-seal">★ Founder's pick</span>
+      </div>
+      <div class="lp-founder-note">
+        <span class="lp-recd">Personally recommended by the founder</span>
+        <p class="lp-founder-quote">"I built SaySet because logging sets on my phone between heavy lifts was wrecking my workouts. I just wanted to <em>say</em> what I did and get back to lifting — so I made the app do exactly that. It's genuinely free for the first 1,000 of you. I'd love for you to try it."</p>
+        <div class="lp-founder-sign">— Ved</div>
+        <div class="lp-founder-meta">
+          <div class="lp-founder-name">Ved Malik</div>
+          <div class="lp-founder-role">Founder · Mumbai</div>
         </div>
-        <p>I built SaySet because logging sets on my phone between heavy lifts ruined my workouts. Voice fixes that. Beta is <b>free forever for the first 1,000 users</b>.</p>
         <div class="lp-social">
           <a href="https://www.linkedin.com/in/ved-malik-45024b267" target="_blank" rel="noopener noreferrer">in/ LinkedIn</a>
           <a href="https://x.com/vedxmalik" target="_blank" rel="noopener noreferrer">𝕏 @vedxmalik</a>
         </div>
       </div>
+    </div>
+
+    <div class="lp-trust-grid">
       <div class="lp-trust-card">
         <h3>Built on best-in-class AI</h3>
         <p>Not a wrapper around a single API. SaySet picks the right model for each job and validates everything server-side.</p>
