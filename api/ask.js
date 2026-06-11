@@ -5,6 +5,14 @@
 const { gateAI, refundAI } = require('./_ratelimit');
 const { logUsage } = require('./_usage');
 
+const STYLE = {
+  concise: 'Tone: very concise — one short sentence if possible.',
+  detailed: 'Tone: thorough — explain the reasoning behind the answer.',
+  hype: 'Tone: high-energy and motivating, like a hype coach.',
+  tough: 'Tone: blunt and no-nonsense — straight to the point.',
+};
+const styleHint = (s) => STYLE[s] ? '\n\n' + STYLE[s] : '';
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
   try {
@@ -36,7 +44,7 @@ Answer in 100 WORDS OR FEWER, plain text (no markdown). Include specific numbers
       or = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'HTTP-Referer': 'https://sayset.fit', 'X-Title': 'SaySet' },
-        body: JSON.stringify({ model: 'deepseek/deepseek-v4-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 260, usage: { include: true } }),
+        body: JSON.stringify({ model: 'deepseek/deepseek-v4-flash', messages: [{ role: 'user', content: prompt + styleHint(body.style) }], temperature: 0.2, max_tokens: 260, usage: { include: true } }),
       });
       data = await or.json();
     } catch (e) {
