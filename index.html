@@ -1465,28 +1465,9 @@
     </div>
 
     <div class="profile-card">
-      <div class="card-title">Preferences</div>
-      <label class="fld-label">Units</label>
-      <div class="chip-row" id="unitChips">
-        <button class="chip" data-unit="kg">kg</button>
-        <button class="chip" data-unit="lb">lb</button>
-      </div>
-      <label class="fld-label" style="margin-top:6px">Weekly session goal</label>
-      <input type="number" id="profGoal" inputmode="numeric" min="1" max="14" placeholder="4" />
-      <label class="fld-label" style="margin-top:14px">Confirm voice logs before saving</label>
-      <div class="chip-row" id="confirmChips">
-        <button class="chip" data-confirm="on">On</button>
-        <button class="chip" data-confirm="off">Off</button>
-      </div>
-      <button class="auth-btn" id="prefSave" style="margin-top:8px">Save preferences</button>
-      <div class="prof-msg" id="prefMsg"></div>
-    </div>
-
-    <div class="profile-card">
-      <div class="card-title">Your data</div>
+      <div class="card-title">Share</div>
       <div class="data-btns">
         <button class="btn-sm" id="shareRank">📲 Share my rank</button>
-        <button class="btn-sm" id="exportCsv">Export workouts (CSV)</button>
       </div>
     </div>
 
@@ -1547,6 +1528,24 @@
         <option value="ru">Russian</option>
       </select>
       <div class="prof-msg" id="langMsg"></div>
+    </div>
+
+    <div class="profile-card">
+      <div class="card-title">📏 Units &amp; preferences</div>
+      <label class="fld-label">Weight units</label>
+      <div class="chip-row" id="unitChips">
+        <button class="chip" data-unit="kg">kg</button>
+        <button class="chip" data-unit="lb">lb</button>
+      </div>
+      <label class="fld-label" style="margin-top:6px">Weekly session goal</label>
+      <input type="number" id="profGoal" inputmode="numeric" min="1" max="14" placeholder="4" />
+      <label class="fld-label" style="margin-top:14px">Confirm voice logs before saving</label>
+      <div class="chip-row" id="confirmChips">
+        <button class="chip" data-confirm="on">On</button>
+        <button class="chip" data-confirm="off">Off</button>
+      </div>
+      <button class="auth-btn" id="prefSave" style="margin-top:8px">Save preferences</button>
+      <div class="prof-msg" id="prefMsg"></div>
     </div>
 
     <div class="profile-card">
@@ -2673,7 +2672,12 @@
       if (micMsg) { micMsg.textContent = mics.some(m => m.label) ? '' : 'Tap "Test microphone" to grant access and see device names.'; micMsg.className = 'prof-msg'; }
     } catch (e) { if (micMsg) { micMsg.textContent = 'Could not list microphones: ' + e.message; micMsg.className = 'prof-msg err'; } }
   }
-  function renderSettings(){ loadMics(); }
+  function renderSettings(){
+    loadMics();
+    document.querySelectorAll('#unitChips .chip').forEach(c => c.classList.toggle('active', c.dataset.unit === units));
+    document.querySelectorAll('#confirmChips .chip').forEach(c => c.classList.toggle('active', c.dataset.confirm === (confirmSave ? 'on' : 'off')));
+    const g = document.getElementById('profGoal'); if (g && !g.value) g.value = weeklyGoal || 4;
+  }
 
   (function wireSettings(){
     const micSel = document.getElementById('micSelect'), langSel = document.getElementById('langSelect'),
@@ -3398,19 +3402,7 @@
     try { const { data } = await sb.auth.updateUser({ data: { confirm_save: confirmSave } }); if (data && data.user) currentUser = data.user; } catch(e){}
   }));
 
-  // CSV export
-  document.getElementById('exportCsv').addEventListener('click', () => {
-    const header = ['date','exercise','kind','muscle','sets','reps','weight_kg','duration_min','distance_km'];
-    const lines = [header, ...allRows.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r =>
-      [r.date, r.name, r.kind||'strength', r.muscle||'', r.sets??'', r.reps??'', r.weight_kg??'', r.duration_min??'', r.distance_km??''])];
-    const csv = lines.map(row => row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'set-workouts.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
+  // CSV / JSON export now lives in the Settings tab (exportData).
 
   // Delete account (permanent)
   document.getElementById('deleteAccount').addEventListener('click', async () => {
