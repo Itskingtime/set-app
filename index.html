@@ -1568,6 +1568,21 @@
     </div>
 
     <div class="profile-card">
+      <div class="card-title">🔔 Reminders</div>
+      <p class="prof-note" style="text-align:left;padding:0 0 12px;margin:0">Nudge me if I go quiet. Enable push notifications in the <b style="color:var(--ink)">Profile</b> tab first.</p>
+      <label class="fld-label">Remind me after I haven't trained for</label>
+      <select class="set-select" id="reminderDays" style="width:100%">
+        <option value="2">2 days</option>
+        <option value="3">3 days</option>
+        <option value="5">5 days</option>
+        <option value="7">7 days</option>
+      </select>
+      <label class="set-row" style="margin-top:14px"><span>Weekly recap every Sunday</span>
+        <div class="chip-row mini" data-rtoggle="weekly_recap"><button class="chip" data-v="1">On</button><button class="chip" data-v="0">Off</button></div></label>
+      <div class="prof-msg" id="reminderMsg"></div>
+    </div>
+
+    <div class="profile-card">
       <div class="card-title">🧠 AI coach style</div>
       <p class="prof-note" style="text-align:left;padding:0 0 12px;margin:0">How your weekly insight and answers should sound.</p>
       <select class="set-select" id="coachStyle" style="width:100%">
@@ -2677,6 +2692,9 @@
     document.querySelectorAll('#unitChips .chip').forEach(c => c.classList.toggle('active', c.dataset.unit === units));
     document.querySelectorAll('#confirmChips .chip').forEach(c => c.classList.toggle('active', c.dataset.confirm === (confirmSave ? 'on' : 'off')));
     const g = document.getElementById('profGoal'); if (g && !g.value) g.value = weeklyGoal || 4;
+    const rmeta = (currentUser && currentUser.user_metadata) || {};
+    const rd = document.getElementById('reminderDays'); if (rd) rd.value = String(rmeta.reminder_days || 3);
+    document.querySelectorAll('#tab-settings [data-rtoggle="weekly_recap"] .chip').forEach(c => c.classList.toggle('active', c.dataset.v === (rmeta.weekly_recap ? '1' : '0')));
   }
 
   (function wireSettings(){
@@ -2837,6 +2855,22 @@
     const csv = document.getElementById('exportCsv'), json = document.getElementById('exportJson');
     if (csv) csv.addEventListener('click', () => exportData('csv'));
     if (json) json.addEventListener('click', () => exportData('json'));
+  })();
+
+  (function wireReminderPrefs(){
+    const days = document.getElementById('reminderDays'), msg = document.getElementById('reminderMsg');
+    async function save(patch){
+      try { const { data, error } = await sb.auth.updateUser({ data: patch }); if (error) throw error; if (data && data.user) currentUser = data.user; if (msg){ msg.textContent = 'Saved ✓'; msg.className = 'prof-msg ok'; } }
+      catch (e){ if (msg){ msg.textContent = '⚠️ ' + e.message; msg.className = 'prof-msg err'; } }
+    }
+    if (days) days.addEventListener('change', () => save({ reminder_days: parseInt(days.value, 10) || 3 }));
+    document.querySelectorAll('#tab-settings [data-rtoggle]').forEach(row => {
+      const key = row.dataset.rtoggle;
+      row.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+        row.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x === c));
+        save({ [key]: c.dataset.v === '1' });
+      }));
+    });
   })();
 
   // ════════════════════════════════════════════════════════════════════════
