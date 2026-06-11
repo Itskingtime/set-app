@@ -864,6 +864,22 @@
     .lp-sticky .lp-st-primary { background:var(--gradb); color:#2a1d00; }
     .lp-sticky .lp-st-ghost { background:transparent; color:var(--ink); border:1px solid var(--brd); }
     @media (max-width: 760px) { .lp-sticky { display:flex; } }
+
+    /* === Settings controls === */
+    .set-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 0; border-bottom:1px solid var(--line); font-size:0.9rem; color:var(--text); }
+    .set-row:last-of-type { border-bottom:none; padding-bottom:2px; }
+    .set-row > span { flex:1; }
+    .chip-row.mini { display:inline-flex; gap:0; border:1px solid var(--brd); border-radius:999px; overflow:hidden; flex-shrink:0; }
+    .chip-row.mini .chip { padding:6px 15px; font-size:0.8rem; border:none; border-radius:0; background:transparent; color:var(--muted); cursor:pointer; }
+    .chip-row.mini .chip.active { background:var(--gradb); color:#2a1d00; font-weight:800; }
+    .set-select { background:#111; border:1px solid var(--brd); color:var(--ink); border-radius:9px; padding:8px 10px; font-size:0.85rem; min-width:104px; flex-shrink:0; }
+    /* Rest-timer floating bar */
+    .rest-bar { position:fixed; left:50%; bottom:calc(20px + var(--safe-bottom)); transform:translate(-50%,150%); z-index:250; display:flex; align-items:center; gap:10px; background:rgba(20,14,9,0.96); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); border:1px solid var(--accent); border-radius:999px; padding:10px 14px; box-shadow:0 14px 40px rgba(0,0,0,0.55); transition:transform .25s ease; }
+    .rest-bar.show { transform:translate(-50%,0); }
+    .rest-ico { font-size:1.15rem; }
+    .rest-time { font-variant-numeric:tabular-nums; font-weight:850; color:var(--ink); font-size:1.05rem; min-width:46px; text-align:center; }
+    .rest-btn { background:rgba(255,255,255,0.08); border:1px solid var(--brd); color:var(--text); border-radius:999px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; }
+    .rest-btn:hover { border-color:var(--accent); color:var(--ink); }
   </style>
 </head>
 <body>
@@ -1241,6 +1257,14 @@
   <button class="lp-st-primary" id="lpStickySignup">Sign up</button>
 </div>
 
+<!-- Rest timer floating bar -->
+<div class="rest-bar" id="restBar">
+  <span class="rest-ico">⏱️</span>
+  <span class="rest-time" id="restTime">1:30</span>
+  <button class="rest-btn" id="restPlus">+30s</button>
+  <button class="rest-btn" id="restSkip">Skip</button>
+</div>
+
 <!-- ════════ AUTH SCREEN ════════ -->
 <div id="authScreen" style="display:none">
   <div class="auth-card">
@@ -1523,6 +1547,25 @@
         <option value="ru">Russian</option>
       </select>
       <div class="prof-msg" id="langMsg"></div>
+    </div>
+
+    <div class="profile-card">
+      <div class="card-title">📳 Recording</div>
+      <label class="set-row"><span>Haptic feedback <small style="color:var(--faint)">— buzz on record start/stop</small></span>
+        <div class="chip-row mini" data-toggle="haptics"><button class="chip" data-v="1">On</button><button class="chip" data-v="0">Off</button></div></label>
+      <label class="set-row"><span>Auto-stop when I go quiet <small style="color:var(--faint)">— hands-free</small></span>
+        <div class="chip-row mini" data-toggle="autostop"><button class="chip" data-v="1">On</button><button class="chip" data-v="0">Off</button></div></label>
+      <label class="set-row"><span>Max clip length</span>
+        <select class="set-select" data-val="maxrec"><option value="20">20 sec</option><option value="30">30 sec</option><option value="60">60 sec</option><option value="0">No limit</option></select></label>
+    </div>
+
+    <div class="profile-card">
+      <div class="card-title">⏱️ Rest timer</div>
+      <label class="set-row"><span>Auto-start after I save a set</span>
+        <div class="chip-row mini" data-toggle="rest_auto"><button class="chip" data-v="1">On</button><button class="chip" data-v="0">Off</button></div></label>
+      <label class="set-row"><span>Rest duration</span>
+        <select class="set-select" data-val="rest"><option value="60">60 sec</option><option value="90">90 sec</option><option value="120">2 min</option><option value="180">3 min</option><option value="0">Off</option></select></label>
+      <button class="btn-sm" id="restTestBtn" style="margin-top:10px">Start a test rest</button>
     </div>
 
     <p class="prof-note" style="padding:6px 4px 0">Your weight, units, goal, reminders and account live in the <b style="color:var(--ink)">Profile</b> tab.</p>
@@ -2671,6 +2714,72 @@
     }
   })();
 
+  // ── Gym preferences: haptics, auto-stop, max clip, rest timer ──────────────
+  function getVal(k, def){ try { const v = localStorage.getItem('sayset_' + k); return v == null ? def : v; } catch (e) { return def; } }
+  function getBool(k, def){ return getVal(k, def ? '1' : '0') === '1'; }
+  function setVal(k, v){ try { localStorage.setItem('sayset_' + k, v); } catch (e) {} }
+  function haptic(pattern){ if (getBool('haptics', true)) { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {} } }
+
+  let recMaxTimer = null, silenceCtx = null, silenceRAF = null;
+  function setupSilenceDetect(stream){
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; silenceCtx = new AC();
+      const an = silenceCtx.createAnalyser(); an.fftSize = 512; silenceCtx.createMediaStreamSource(stream).connect(an);
+      const buf = new Uint8Array(an.fftSize); let armed = false, lastLoud = Date.now();
+      const loop = () => {
+        if (!isListening) return;
+        an.getByteTimeDomainData(buf); let peak = 0;
+        for (let i = 0; i < buf.length; i++){ const v = Math.abs(buf[i] - 128); if (v > peak) peak = v; }
+        if (peak > 14){ armed = true; lastLoud = Date.now(); }
+        if (armed && Date.now() - lastLoud > 1800){ stopListening(); return; }   // stop ~1.8s after you go quiet
+        silenceRAF = requestAnimationFrame(loop);
+      };
+      loop();
+    } catch (e) {}
+  }
+  function teardownRecMonitors(){
+    if (recMaxTimer){ clearTimeout(recMaxTimer); recMaxTimer = null; }
+    if (silenceRAF){ cancelAnimationFrame(silenceRAF); silenceRAF = null; }
+    if (silenceCtx){ silenceCtx.close().catch(() => {}); silenceCtx = null; }
+  }
+
+  let restInt = null, restEnd = 0;
+  function mmss(s){ const m = Math.floor(s / 60), x = s % 60; return m + ':' + (x < 10 ? '0' : '') + x; }
+  function startRest(secs){
+    const bar = document.getElementById('restBar'); if (!bar || !secs) return;
+    restEnd = Date.now() + secs * 1000; bar.classList.add('show'); tickRest();
+    if (restInt) clearInterval(restInt); restInt = setInterval(tickRest, 250);
+  }
+  function tickRest(){
+    const t = document.getElementById('restTime'); if (!t) return;
+    const left = Math.max(0, Math.round((restEnd - Date.now()) / 1000));
+    t.textContent = mmss(left);
+    if (left <= 0) stopRest(true);
+  }
+  function stopRest(done){
+    if (restInt){ clearInterval(restInt); restInt = null; }
+    const bar = document.getElementById('restBar'); if (bar) bar.classList.remove('show');
+    if (done) haptic([200, 90, 200]);
+  }
+  (function wireGymSettings(){
+    const plus = document.getElementById('restPlus'), skip = document.getElementById('restSkip'), test = document.getElementById('restTestBtn');
+    if (plus) plus.addEventListener('click', () => { restEnd += 30000; tickRest(); });
+    if (skip) skip.addEventListener('click', () => stopRest(false));
+    if (test) test.addEventListener('click', () => startRest(parseInt(getVal('rest', '90'), 10) || 90));
+    document.querySelectorAll('#tab-settings [data-toggle]').forEach(row => {
+      const key = row.dataset.toggle, def = key === 'haptics' ? '1' : '0', cur = getVal(key, def);
+      row.querySelectorAll('.chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.v === cur);
+        c.addEventListener('click', () => { setVal(key, c.dataset.v); row.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x === c)); });
+      });
+    });
+    document.querySelectorAll('#tab-settings [data-val]').forEach(sel => {
+      const key = sel.dataset.val, def = key === 'maxrec' ? '60' : key === 'rest' ? '90' : '';
+      sel.value = getVal(key, def);
+      sel.addEventListener('change', () => setVal(key, sel.value));
+    });
+  })();
+
   // ════════════════════════════════════════════════════════════════════════
   //  VOICE: MediaRecorder → Groq Whisper → Claude Haiku → Supabase
   // ════════════════════════════════════════════════════════════════════════
@@ -2691,6 +2800,10 @@
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); processAudio(); };
       mediaRecorder.start(100);
+      haptic(40);
+      const maxrec = parseInt(getVal('maxrec', '60'), 10) || 0;
+      if (maxrec) recMaxTimer = setTimeout(() => { if (isListening) stopListening(); }, maxrec * 1000);
+      if (getBool('autostop', false)) setupSilenceDetect(stream);
       isListening = true; micBtn.classList.add('listening');
       transcriptBox.textContent = 'Recording…'; transcriptBox.className = 'transcript-box interim';
       elapsedSecs = 0; micLabel.textContent = 'Recording 0s — click to stop';
@@ -2700,6 +2813,7 @@
   function stopListening() {
     if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
     clearInterval(elapsedTimer); isListening = false;
+    teardownRecMonitors(); haptic(30);
     micBtn.classList.remove('listening'); micLabel.textContent = 'Click to start';
     mediaRecorder.stop();
   }
@@ -2782,6 +2896,8 @@
       renderTable(); renderLog(); renderFeedback(insights);
       if (prNames.size) { try { navigator.vibrate && navigator.vibrate([120,60,120,60,200]); } catch(e){} }
       setStatus(`✓ Saved ${exercises.length} exercise${exercises.length>1?'s':''}`, false);
+      const hasStrength = exercises.some(e => (e.kind || 'strength') !== 'cardio');
+      if (hasStrength && getBool('rest_auto', false)) { const rs = parseInt(getVal('rest', '90'), 10) || 0; if (rs) startRest(rs); }
     } catch (err) { setStatus(`⚠️ Error: ${err.message}`, false); }
   }
 
