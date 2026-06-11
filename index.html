@@ -1316,6 +1316,7 @@
     <button class="tab-btn" data-tab="progress">Progress</button>
     <button class="tab-btn" data-tab="records">Records</button>
     <button class="tab-btn" data-tab="profile">Profile</button>
+    <button class="tab-btn" data-tab="settings">Settings</button>
     <button class="tab-btn" data-tab="admin" id="adminTabBtn" style="display:none">Admin</button>
   </div>
 
@@ -1486,6 +1487,45 @@
       <div class="card-title" style="color:#e5484d">Danger zone</div>
       <button class="btn-sm danger" id="deleteAccount">Delete account &amp; all data</button>
     </div>
+  </div>
+
+  <div class="tab-panel" id="tab-settings">
+    <div class="section-header"><span class="section-title">Settings</span></div>
+
+    <div class="profile-card">
+      <div class="card-title">🎙️ Microphone</div>
+      <p class="prof-note" style="text-align:left;padding:0 0 12px;margin:0">Choose which microphone SaySet uses when you log a workout by voice.</p>
+      <select id="micSelect"><option value="">Default microphone</option></select>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+        <button class="btn-sm" id="micTestBtn">Test microphone</button>
+        <div style="flex:1;height:10px;background:#111;border:1px solid #2a2a2a;border-radius:6px;overflow:hidden">
+          <div id="micLevel" style="height:100%;width:0%;background:var(--gradb);transition:width .06s linear"></div>
+        </div>
+      </div>
+      <div class="prof-msg" id="micMsg"></div>
+    </div>
+
+    <div class="profile-card">
+      <div class="card-title">🗣️ Transcription language</div>
+      <p class="prof-note" style="text-align:left;padding:0 0 12px;margin:0">Auto-detect works for most people. Pick a language if your sets are getting misheard.</p>
+      <select id="langSelect">
+        <option value="">Auto-detect</option>
+        <option value="en">English</option>
+        <option value="hi">Hindi</option>
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="pt">Portuguese</option>
+        <option value="it">Italian</option>
+        <option value="ar">Arabic</option>
+        <option value="ja">Japanese</option>
+        <option value="zh">Mandarin Chinese</option>
+        <option value="ru">Russian</option>
+      </select>
+      <div class="prof-msg" id="langMsg"></div>
+    </div>
+
+    <p class="prof-note" style="padding:6px 4px 0">Your weight, units, goal, reminders and account live in the <b style="color:var(--ink)">Profile</b> tab.</p>
   </div>
 
   <div class="tab-panel" id="tab-admin">
@@ -2345,6 +2385,7 @@
       if (btn.dataset.tab === 'records') renderRecords();
       if (btn.dataset.tab === 'progress') renderProgress();
       if (btn.dataset.tab === 'profile') renderProfile();
+      if (btn.dataset.tab === 'settings') renderSettings();
       if (btn.dataset.tab === 'admin') loadAdminStats();
     });
   });
@@ -2546,6 +2587,91 @@
   })();
 
   // ════════════════════════════════════════════════════════════════════════
+  //  SETTINGS: microphone selection + transcription language
+  // ════════════════════════════════════════════════════════════════════════
+  function micConstraint(){
+    let id = ''; try { id = localStorage.getItem('sayset_mic') || ''; } catch (e) {}
+    return id ? { audio: { deviceId: id } } : { audio: true };   // non-exact → falls back if unplugged
+  }
+  function transcriptionLang(){
+    try { return localStorage.getItem('sayset_lang') || ''; } catch (e) { return ''; }
+  }
+  async function loadMics(){
+    const micSel = document.getElementById('micSelect'), micMsg = document.getElementById('micMsg');
+    if (!micSel || !navigator.mediaDevices) return;
+    try {
+      const mics = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+      let saved = ''; try { saved = localStorage.getItem('sayset_mic') || ''; } catch (e) {}
+      micSel.innerHTML = '<option value="">Default microphone</option>' +
+        mics.map((m, i) => `<option value="${esc(m.deviceId)}">${esc(m.label || ('Microphone ' + (i + 1)))}</option>`).join('');
+      micSel.value = saved;
+      if (micMsg) { micMsg.textContent = mics.some(m => m.label) ? '' : 'Tap "Test microphone" to grant access and see device names.'; micMsg.className = 'prof-msg'; }
+    } catch (e) { if (micMsg) { micMsg.textContent = 'Could not list microphones: ' + e.message; micMsg.className = 'prof-msg err'; } }
+  }
+  function renderSettings(){ loadMics(); }
+
+  (function wireSettings(){
+    const micSel = document.getElementById('micSelect'), langSel = document.getElementById('langSelect'),
+          testBtn = document.getElementById('micTestBtn'), level = document.getElementById('micLevel'),
+          micMsg = document.getElementById('micMsg');
+    if (!micSel) return;
+
+    micSel.addEventListener('change', () => {
+      try { localStorage.setItem('sayset_mic', micSel.value); } catch (e) {}
+      if (micMsg) { micMsg.textContent = 'Saved ✓'; micMsg.className = 'prof-msg ok'; }
+    });
+    if (langSel) {
+      try { langSel.value = localStorage.getItem('sayset_lang') || ''; } catch (e) {}
+      langSel.addEventListener('change', () => {
+        try { localStorage.setItem('sayset_lang', langSel.value); } catch (e) {}
+        const lm = document.getElementById('langMsg'); if (lm) { lm.textContent = 'Saved ✓'; lm.className = 'prof-msg ok'; }
+      });
+    }
+
+    // Live mic test with a level meter (also unlocks device labels via permission)
+    let ctx = null, stream = null, raf = null, testing = false;
+    function stopTest(){
+      testing = false;
+      if (raf) cancelAnimationFrame(raf);
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      if (ctx) ctx.close().catch(() => {});
+      stream = null; ctx = null;
+      if (level) level.style.width = '0%';
+      if (testBtn) testBtn.textContent = 'Test microphone';
+    }
+    if (testBtn) testBtn.addEventListener('click', async () => {
+      if (testing) { stopTest(); return; }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(micConstraint());
+        await loadMics();                                  // labels available now
+        const AC = window.AudioContext || window.webkitAudioContext;
+        ctx = new AC();
+        const an = ctx.createAnalyser(); an.fftSize = 512;
+        ctx.createMediaStreamSource(stream).connect(an);
+        const buf = new Uint8Array(an.fftSize);
+        testing = true; testBtn.textContent = 'Stop test';
+        if (micMsg) { micMsg.textContent = 'Speak — the bar should move.'; micMsg.className = 'prof-msg'; }
+        const tick = () => {
+          if (!testing) return;
+          an.getByteTimeDomainData(buf);
+          let peak = 0; for (let i = 0; i < buf.length; i++) { const v = Math.abs(buf[i] - 128); if (v > peak) peak = v; }
+          if (level) level.style.width = Math.min(100, Math.round(peak / 128 * 140)) + '%';
+          raf = requestAnimationFrame(tick);
+        };
+        tick();
+        setTimeout(() => { if (testing) stopTest(); }, 8000);   // auto-stop after 8s
+      } catch (e) {
+        if (micMsg) { micMsg.textContent = '🎤 ' + (e.name === 'NotAllowedError' ? 'Microphone access denied — allow it in your browser.' : e.message); micMsg.className = 'prof-msg err'; }
+        stopTest();
+      }
+    });
+
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      try { navigator.mediaDevices.addEventListener('devicechange', loadMics); } catch (e) {}
+    }
+  })();
+
+  // ════════════════════════════════════════════════════════════════════════
   //  VOICE: MediaRecorder → Groq Whisper → Claude Haiku → Supabase
   // ════════════════════════════════════════════════════════════════════════
   const micBtn = document.getElementById('micBtn');
@@ -2556,7 +2682,7 @@
 
   async function startListening() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia(micConstraint());
       audioChunks = [];
       const mt = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
                : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
@@ -2599,7 +2725,7 @@
       const res = await fetch('/api/transcribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audio, mime: mt, access_token: await authToken() }),
+        body: JSON.stringify({ audio, mime: mt, language: transcriptionLang(), access_token: await authToken() }),
       });
       const data = await res.json();
       if (!res.ok) { setStatus(`⚠️ Transcription failed: ${data.error || res.status}`, false); transcriptBox.className = 'transcript-box'; return; }

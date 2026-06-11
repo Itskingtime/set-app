@@ -11,6 +11,7 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const { audio, mime } = body;
+    const language = typeof body.language === 'string' ? body.language.slice(0, 8) : '';
     if (!audio) { res.status(400).json({ error: 'No audio provided' }); return; }
     if (typeof audio !== 'string' || audio.length > 8000000) { res.status(413).json({ error: 'Audio too large' }); return; }   // ~6 MB cap
 
@@ -28,6 +29,7 @@ module.exports = async (req, res) => {
     const fd = new FormData();                                   // global in Node 18+
     fd.append('file', new Blob([buffer], { type }), `recording.${ext}`);
     fd.append('model', 'whisper-large-v3');
+    if (/^[a-z]{2}$/.test(language)) fd.append('language', language);   // ISO-639-1 hint; omitted = auto-detect
 
     const groq = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
