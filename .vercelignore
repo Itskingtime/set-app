@@ -1,2 +1,7 @@
 mobile
 APIs.env
+.agents
+.claude
+skills-lock.json
+loadtest
+CLAUDE.md
