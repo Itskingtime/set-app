@@ -2921,30 +2921,47 @@
     });
   }
 
+  // Shared post-parse handling: infer/adopt muscles, canonicalise via the AI's
+  // exact exercise_id pick, then review or save.
+  async function handleParsed(exercises, text){
+    exercises = exercises ?? [];
+    if (!exercises.length) { setStatus('No exercises detected — try again', false); return; }
+    exercises.forEach(ex => { if (!ex.muscle) ex.muscle = inferMuscle(ex.name); });
+    await loadExerciseDB();
+    exercises.forEach(ex => {
+      const dbe = (ex.exercise_id && EX_BY_ID) ? EX_BY_ID[ex.exercise_id] : null;
+      if (dbe) { ex.name = dbe.name; ex.muscle = CAT_MUSCLE[dbe.category] || ex.muscle; }
+    });
+    if (confirmSave) { setStatus('Review your sets below ↓', false); showReview(exercises, text); return; }
+    await commitExercises(exercises, text);
+  }
+
   async function processAudio() {
-    setStatus('<span class="spinner"></span> Transcribing…', true);
+    setStatus('<span class="spinner"></span> Transcribing &amp; parsing…', true);
     transcriptBox.textContent = 'Processing audio…'; transcriptBox.className = 'transcript-box interim';
     try {
       const mt   = mediaRecorder.mimeType || 'audio/webm';
       const blob = new Blob(audioChunks, { type: mt });
       const audio = await blobToBase64(blob);
 
-      const res = await fetch('/api/transcribe', {
+      // one round-trip: the server transcribes + parses next to the APIs
+      const res = await fetch('/api/voicelog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ audio, mime: mt, language: transcriptionLang(), access_token: await authToken() }),
       });
       const data = await res.json();
-      if (!res.ok) { setStatus(`⚠️ Transcription failed: ${data.error || res.status}`, false); transcriptBox.className = 'transcript-box'; return; }
+      if (!res.ok) { setStatus(`⚠️ ${data.error || res.status}`, false); transcriptBox.className = 'transcript-box'; return; }
 
-      const transcript = (data.text || '').trim();
+      const transcript = (data.transcript || '').trim();
       if (!transcript) { setStatus('⚠️ Empty transcript — try speaking more clearly', false); transcriptBox.textContent = 'Nothing detected.'; transcriptBox.className = 'transcript-box'; return; }
       transcriptBox.textContent = transcript; transcriptBox.className = 'transcript-box';
-      setStatus('<span class="spinner"></span> AI is parsing your workout…', true);
-      await parseWithAI(transcript);
-    } catch (err) { setStatus(`⚠️ Transcription error: ${err.message}`, false); transcriptBox.className = 'transcript-box'; }
+      setStatus('<span class="spinner"></span> Matching exercises…', true);
+      await handleParsed(data.exercises, transcript);
+    } catch (err) { setStatus(`⚠️ Error: ${err.message}`, false); transcriptBox.className = 'transcript-box'; }
   }
 
+  // Text-only parse (fallback / manual entry): /api/parse → same post-processing
   async function parseWithAI(text) {
     try {
       const res = await fetch('/api/parse', {
@@ -2954,19 +2971,7 @@
       });
       const data = await res.json();
       if (!res.ok) { setStatus(`⚠️ Parse failed: ${data.error || res.status}`, false); return; }
-      const exercises = data.exercises ?? [];
-      if (!exercises.length) { setStatus('No exercises detected — try again', false); return; }
-      exercises.forEach(ex => { if (!ex.muscle) ex.muscle = inferMuscle(ex.name); });
-
-      // use the AI's exact catalog pick: adopt the canonical name + muscle group
-      await loadExerciseDB();
-      exercises.forEach(ex => {
-        const dbe = (ex.exercise_id && EX_BY_ID) ? EX_BY_ID[ex.exercise_id] : null;
-        if (dbe) { ex.name = dbe.name; ex.muscle = CAT_MUSCLE[dbe.category] || ex.muscle; }
-      });
-
-      if (confirmSave) { setStatus('Review your sets below ↓', false); showReview(exercises, text); return; }
-      await commitExercises(exercises, text);
+      await handleParsed(data.exercises, text);
     } catch (err) { setStatus(`⚠️ Error: ${err.message}`, false); }
   }
 

@@ -56,7 +56,7 @@ ${CATALOG_TEXT}`;
         'X-Title': 'SaySet',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-v4-pro',
+        model: 'deepseek/deepseek-v4-flash',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
         usage: { include: true },
