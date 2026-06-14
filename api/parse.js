@@ -82,7 +82,7 @@ ${CATALOG_TEXT}`;
       .map(e => ({ ...e, exercise_id: VALID_IDS.has(e.exercise_id) ? e.exercise_id : null }));
 
     const u = data.usage || {};
-    await logUsage({ uid: gate.uid, endpoint: '/api/parse', model: 'deepseek/deepseek-v4-pro', tokensIn: u.prompt_tokens, tokensOut: u.completion_tokens, costUsd: u.cost });
+    await logUsage({ uid: gate.uid, endpoint: '/api/parse', model: 'deepseek/deepseek-v4-flash', tokensIn: u.prompt_tokens, tokensOut: u.completion_tokens, costUsd: u.cost });
     res.status(200).json({ exercises });
   } catch (e) {
     res.status(500).json({ error: e.message });
